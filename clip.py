@@ -140,6 +140,9 @@ class App(object):
 		if None in self._defaults:
 			raise TypeError('cmd_defaults() called without matching cmd()')
 
+		if args is None:
+			args = sys.argv[1:]
+
 		if main is not None:
 			args.insert(0, main.__name__)
 			subparser = self._subparsers._name_parser_map[main.__name__]
