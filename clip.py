@@ -12,7 +12,13 @@ from argparse import ArgumentParser
 
 __all__ = ['App', 'ClipExit']
 _NO_FUNC = object()
+
+# Compatibility
 text_type = basestring if sys.version_info[0] >= 32 else str
+try:
+	input = raw_input
+except NameError:
+	pass
 
 
 class ClipExit(Exception):
@@ -163,3 +169,25 @@ class App(object):
 			kwargs.update(self._defaults[func])
 
 		return func(**kwargs)
+
+
+	@staticmethod
+	def confirm(prompt, default='yes'):
+		'''Ask a yes/no question via input() and return the answer.
+		``default`` is the presumed answer if the user just hits Enter.
+		It must be one of True (Y), False (N), or None (answer required).
+		'''
+		valid = {
+			'yes': True,
+			'y': True,
+			'no': False,
+			'n': False
+		}
+		if default not in ['yes', 'no', None]:
+			default = None
+		while True:
+			choice = input('{} [{}/{}]: '.format(prompt, 'Y' if default == 'yes' else 'y', 'N' if default == 'no' else 'n')).lower() or default
+			if choice in valid:
+				return valid[choice]
+			else:
+				print('Please respond with "yes" or "no" (or "y" or "n").')
