@@ -1,4 +1,4 @@
-![clip.py](https://rawgit.com/willyg302/clip.py/master/clip-logo.svg "It looks like you're trying to make a CLI.")
+![clip.py](https://raw.github.com/willyg302/clip.py/master/clip-logo-922.png "It looks like you're trying to make a CLI.")
 
 ---
 
@@ -113,6 +113,12 @@ this is cool
 ```
 
 All you have to do is pass the main function to `App.run()` as the `main` argument. Note that this automatically handles substituting the program name in help messages.
+
+### Helper Methods
+
+#### `App.confirm(prompt, default='yes')`
+
+Prompt the user for confirmation (a yes/no question). `default` must be one of `'yes'`, `'no'`, or `None` (meaning that input is required from the user).
 
 ### Advanced: Embedded CLI
 

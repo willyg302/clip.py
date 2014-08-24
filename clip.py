@@ -175,7 +175,7 @@ class App(object):
 	def confirm(prompt, default='yes'):
 		'''Ask a yes/no question via input() and return the answer.
 		``default`` is the presumed answer if the user just hits Enter.
-		It must be one of True (Y), False (N), or None (answer required).
+		It must be one of 'yes', 'no', or None (answer required from user).
 		'''
 		valid = {
 			'yes': True,
