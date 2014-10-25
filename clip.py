@@ -60,7 +60,7 @@ class App(object):
 	def __init__(self, *args, **kwargs):
 		self._parser = ClipParser(*args, **kwargs)
 		self._global_args = []
-		self._subparsers = self._parser.add_subparsers(title='Subcommands')
+		self._subparsers = self._parser.add_subparsers(title='subcommands', metavar='')
 		self._pending_args = []
 		self._defaults = {}
 
