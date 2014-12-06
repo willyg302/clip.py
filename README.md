@@ -4,6 +4,8 @@
 
 Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
 
+> **NOTE**: clip.py is currently being rebuilt from scratch. Please see the releases page for a stable release.
+
 ## Usage
 
 clip.py is just a `pip install git+https://github.com/willyg302/clip.py.git@master` away. After installing, you can safely do `from clip import *`. This imports the two classes `App` and `ClipExit`.

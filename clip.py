@@ -1,193 +1,257 @@
 '''
 clip.py: Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
-
-A fork of Aaargh, Copyright 2012-2013 Wouter Bolsterlee
-Repo: https://github.com/wbolster/aaargh
-License: OSI approved 3-clause "New BSD License"
 '''
 import sys
-
-from argparse import ArgumentParser
-
-
-__all__ = ['App', 'ClipExit']
-_NO_FUNC = object()
-
-# Compatibility
-text_type = basestring if sys.version_info[0] >= 32 else str
-try:
-	input = raw_input
-except NameError:
-	pass
+import itertools
 
 
 class ClipExit(Exception):
 	def __init__(self, status):
-		self.status = status
+		self._status = status
 	def __str__(self):
-		return repr(self.status)
+		return repr(self._status)
 
 
-class ClipParser(ArgumentParser):
+########################################
+# PARAMETER METHODS
+########################################
 
-	def __init__(self, *args, **kwargs):
-		self._stdout = kwargs.pop('stdout', sys.stdout)
-		self._stderr = kwargs.pop('stderr', sys.stderr)
-		module = kwargs.pop('module', None)
-		if module:
-			kwargs.setdefault('prog', module.__name__)
-			kwargs.setdefault('description', module.__doc__)
-		ArgumentParser.__init__(self, *args, **kwargs)
+def _memoize_param(f, param):
+	if isinstance(f, Command):
+		f._params.append(param)
+	else:
+		if not hasattr(f, '__clip_params__'):
+			f.__clip_params__ = []
+		f.__clip_params__.append(param)
 
-	def _print_message(self, message, file=None):
-		if message:
-			if file is None:
-				file = sys.stderr
-			if file == sys.stdout:
-				file = self._stdout
-			if file == sys.stderr:
-				file = self._stderr
-			file.write(message)
+def _make_param(cls, param_decls, **attrs):
+	def decorator(f):
+		_memoize_param(f, cls(param_decls, **attrs))
+		return f
+	return decorator
 
-	def exit(self, status=0, message=None):
-		if message:
-			self._print_message(message, self._stderr)
-		raise ClipExit(status)
+def arg(*param_decls, **attrs):
+	return _make_param(Argument, param_decls, **attrs)
+
+def flag(*param_decls, **attrs):
+	return _make_param(Flag, param_decls, **attrs)
+
+def opt(*param_decls, **attrs):
+	return _make_param(Option, param_decls, **attrs)
+
+
+########################################
+# PARAMETER CLASSES
+########################################
+
+class Parameter(object):
+
+	def __init__(self, param_decls, name=None, nargs=1, **attrs):
+		self._name = name or self._parse_name(param_decls)
+		self._decls = param_decls
+		self._satisfied = False  # True when this parameter has consumed tokens
+		self._nargs = nargs
+
+	def consume(self, tokens):
+		'''Have this parameter consume some tokens.
+		Returns the modified tokens array and the value associated with this
+		parameter to store. For example, given ['-a', 'one', 'two'] where
+		-a is an option that consumes one token, this will return:
+		['two'], 'one' (and 'one' will be stored as the value of 'a').
+		'''
+		pass
+
+
+class Argument(Parameter):
+	'''A positional parameter.
+	'''
+
+	def __init__(self, param_decls, **attrs):
+		Parameter.__init__(self, param_decls, **attrs)
+
+	def _parse_name(self, decls):
+		if not len(decls) == 1:
+			raise TypeError('Arguments take exactly one parameter declaration, got {}'.format(len(decls)))
+		return decls[0]
+
+	def consume(self, tokens):
+		self._satisfied = True
+		n = len(tokens) if self._nargs == -1 else self._nargs
+		ret = tokens[:n]
+		return tokens[n:], ret if n > 1 else ret[0]
+
+
+class Option(Parameter):
+	'''Describes (usually) optional parameters.
+
+	An option may come in either a short or long form:
+	  - The long form begins with a double dash and is dash-delimited,
+	    e.g. --some-option
+	  - The short form begins with a single dash is one letter long,
+	    e.g. -s
+
+	Short-form options may be globbed, e.g. -e -l -f --> -elf.
+	'''
+
+	def __init__(self, param_decls, **attrs):
+		Parameter.__init__(self, param_decls, **attrs)
+
+	def _parse_name(self, decls):
+		longest = sorted(list(decls), key=lambda x: len(x))[-1]
+		return longest[2:].replace('-', '_').lower() if len(longest) > 2 else longest[1:]
+
+	def consume(self, tokens):
+		self._satisfied = True
+		n = len(tokens) if self._nargs == -1 else self._nargs
+		ret = tokens[:n]
+		return tokens[n:], ret if n > 1 else ret[0]
+
+class Flag(Option):
+	'''A special kind of option that consumes zero tokens.
+	A flag stores a boolean that is True only if it's specified.
+	'''
+
+	def __init__(self, param_decls, **attrs):
+		Option.__init__(self, param_decls, **attrs)
+
+	def consume(self, tokens):
+		self._satisfied = True
+		return tokens, True
+
+
+########################################
+# COMMAND METHODS
+########################################
+
+def _make_command(f, name, attrs):
+	if isinstance(f, Command):
+		raise TypeError('Callback is already a Command')
+	try:
+		params = f.__clip_params__
+		params.reverse()
+		del f.__clip_params__
+	except AttributeError:
+		params = []
+	return Command(name=name or f.__name__.lower(), callback=f, params=params, **attrs)
+
+def command(name=None, **attrs):
+	def decorator(f):
+		return _make_command(f, name, attrs)
+	return decorator
+
+
+########################################
+# COMMAND CLASS
+########################################
+
+class Command(object):
+
+	def __init__(self, name, callback, params):
+		self._name = name
+		self._callback = callback
+		self._params = params
+
+		self._subcommands = {}
+
+	def subcommand(self, name=None, **attrs):
+		def decorator(f):
+			cmd = command(name, **attrs)(f)
+			self._subcommands[cmd._name] = cmd
+			return cmd
+		return decorator
+
+	def invoke(self, parsed):
+		ret = None
+		direct_args = {k: v for k, v in parsed.iteritems() if k not in self._subcommands}
+		if self._callback is not None:
+			ret = self._callback(**direct_args)
+		# Invoke subcommands (realistically only one should be invoked)
+		for k, v in parsed.iteritems():
+			if k in self._subcommands:
+				self._subcommands[k].invoke(v)
+		return ret  # @TODO: Is this even useful?
+
+	def parse(self, tokens):
+		parsed = {}
+		while tokens:
+			token = tokens.pop(0)
+			# 1. Is it a subcommand? Pass off to subcommand.
+			if token in self._subcommands:
+				parsed[token] = self._subcommands[token].parse(tokens)
+				break  # The subcommand handles the remaining tokens
+			# 2. Check if it's an option, and if so let it consume tokens.
+			elif token.startswith('-'):
+				for param in self._params:
+					if token in param._decls:
+						tokens, parsed[param._name] = param.consume(tokens)
+						break
+			# 3. Try to satisfy positional parameters (arguments).
+			else:
+				for param in self._params:
+					if isinstance(param, Argument) and not param._satisfied:
+						tokens, parsed[param._name] = param.consume([token] + tokens)
+						break
+			# 4. Error out.
+				else:
+					# @TODO better error message
+					raise AttributeError('Weird token encountered: {}'.format(token))
+
+		return parsed
 
 
 class App(object):
 
 	def __init__(self, *args, **kwargs):
-		self._parser = ClipParser(*args, **kwargs)
-		self._global_args = []
-		self._subparsers = self._parser.add_subparsers(title='subcommands', metavar='')
-		self._pending_args = []
-		self._defaults = {}
+		self._main = None
 
-	def arg(self, *args, **kwargs):
-		'''Add a global application argument'''
-		self._global_args.append((args, kwargs))
-		return self._parser.add_argument(*args, **kwargs)
+	def main(self, name=None, **attrs):
+		def decorator(f):
+			if self._main is not None:
+				raise AttributeError('A main function has already been assigned')
+			cmd = command(name, **attrs)(f)
+			self._main = cmd
+			return cmd
+		return decorator
 
-	def defaults(self, **kwargs):
-		'''Set global defaults'''
-		return self._parser.set_defaults(**kwargs)
 
-	def cmd(self, _func=_NO_FUNC, name=None, alias=None, *args, **kwargs):
-		'''Decorator to turn a function into a subcommand'''
-		if _func is not _NO_FUNC:
-			# Allows for using the decorator without parentheses
-			return self.cmd()(_func)
+	def parse(self, tokens):
+		'''Parses a list of tokens into a JSON-serializable object.
 
-		def wrapper(func):
-			subcommand = name if name is not None else func.__name__
-			kwargs.setdefault('help', '')
-			# Monkey-patch kwargs to pass stream info to subparser
-			kwargs['stdout'] = self._parser._stdout
-			kwargs['stderr'] = self._parser._stderr
-			kwargs.setdefault('prog', subcommand)
-			kwargs.setdefault('description', func.__doc__)
-			subparser = self._subparsers.add_parser(subcommand, *args, **kwargs)
-			if alias:
-				if isinstance(alias, text_type):
-					aliases = [alias]
-				else:
-					aliases = alias
-				assert isinstance(aliases, (tuple, list))
-				parser_map = self._subparsers._name_parser_map
-				for subcommand_alias in aliases:
-					parser_map[subcommand_alias] = parser_map[subcommand]
+		The parsing proceeds from left to right and is greedy.
 
-			# Add any pending arguments
-			for a, k in self._pending_args:
-				subparser.add_argument(*a, **k)
-			self._pending_args = []
+		Precedence order:
+		  1. Parameters with active context. For example, an Option with
+		     nargs='+' will gobble all the remaining tokens.
+		  2. Subcommands.
+		  3. Parameters.
 
-			# Add any pending default values
-			try:
-				pending_defaults = self._defaults.pop(None)
-			except KeyError:
-				pass  # No pending defaults
-			else:
-				self._defaults[func] = pending_defaults
+		The keys of the returned object are the names of parameters or
+		subcommands. Subcommands are encoded as nested objects. Multiple
+		parameters are encoded as lists. All other values are encoded as
+		parameter-specified data types, or strings if not specified.
 
-			# Store callback function and return the decorated function unmodified
-			subparser.set_defaults(_func=func)
-			return func
-
-		return wrapper
-
-	def cmd_arg(self, *args, **kwargs):
-		'''Decorator to specify an argument for a subcommand'''
-		if len(args) == 1 and callable(args[0]) and not kwargs:
-			raise TypeError('cmd_arg() decorator requires arguments, but none were supplied')
-
-		# Remember the passed args, since the command is not yet known
-		self._pending_args.append((args, kwargs))
-		return lambda func: func
-
-	def cmd_defaults(self, **kwargs):
-		'''Decorator to specify defaults for a subcommand'''
-		if len(kwargs) == 1 and callable(list(kwargs.values())[0]):
-			raise TypeError('defaults() decorator requires arguments, but none were supplied')
-
-		# Work-around http://bugs.python.org/issue9351 by storing the
-		# defaults outside the ArgumentParser. The special key "None" is
-		# used for the pending defaults for a yet-to-be defined command.
-		self._defaults[None] = kwargs
-		return lambda func: func
-
-	def run(self, args=None, namespace=None, main=None):
-		'''Run the application.
-		If ``main`` is defined, it will become the top-level command.
+		NOTE: no validation occurs at this step. During the handle() phase
+		the JSON object will be applied and any errors raised.
 		'''
-		if self._pending_args:
-			raise TypeError('cmd_arg() called without matching cmd()')
-		if None in self._defaults:
-			raise TypeError('cmd_defaults() called without matching cmd()')
+		# Pre-parsing:
+		#   1. Expand globbed options: -elf --> -e -l -f
+		def is_globbed(s):
+			return len(s) > 2 and s.startswith('-') and not s.startswith('--')
+		expanded = [["-" + c for c in list(token[1:])] if is_globbed(token) else [token] for token in tokens]
+		flattened = list(itertools.chain.from_iterable(expanded))
 
-		if args is None:
-			args = sys.argv[1:]
+		# Parsing: pass off to main command
+		return self._main.parse(flattened)
 
-		if main is not None:
-			args.insert(0, main.__name__)
-			subparser = self._subparsers._name_parser_map[main.__name__]
-			# Add global args to subparser namespace
-			for a, k in self._global_args:
-				subparser.add_argument(*a, **k)
-			# Inherit description from parent module
-			subparser.description = self._parser.description
-
-		kwargs = vars(self._parser.parse_args(args=args, namespace=namespace))
-		sentinel = object()
-		func = kwargs.pop('_func', sentinel)
-
-		if func is sentinel:
-			self._parser.error('too few arguments')
-
-		if func in self._defaults:
-			kwargs.update(self._defaults[func])
-
-		return func(**kwargs)
-
-
-	@staticmethod
-	def confirm(prompt, default='yes'):
-		'''Ask a yes/no question via input() and return the answer.
-		``default`` is the presumed answer if the user just hits Enter.
-		It must be one of 'yes', 'no', or None (answer required from user).
+	def handle(self, parsed):
+		'''Takes a parsed argument object and applies it to the CLI.
 		'''
-		valid = {
-			'yes': True,
-			'y': True,
-			'no': False,
-			'n': False
-		}
-		if default not in ['yes', 'no', None]:
-			default = None
-		while True:
-			choice = input('{} [{}/{}]: '.format(prompt, 'Y' if default == 'yes' else 'y', 'N' if default == 'no' else 'n')).lower() or default
-			if choice in valid:
-				return valid[choice]
-			else:
-				print('Please respond with "yes" or "no" (or "y" or "n").')
+		#print(parsed)
+		self._main.invoke(parsed)
+
+	def run(self, tokens=None):
+		if tokens is None:
+			tokens = sys.argv[1:]
+
+		parsed = self.parse(tokens)
+		self.handle(parsed)
