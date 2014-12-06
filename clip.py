@@ -5,11 +5,70 @@ import sys
 import itertools
 
 
+''' @TODO:
+
+- Allow user to set out/err streams to print everything to (help, etc.)
+- A prompt function:
+  - text: To show for prompt
+  - default: Default if no input given, if None then prompt will repeat until aborted (None)
+  - invisible: For password prompts (False)
+  - confirm: Ask for confirmation (False)
+  - type: The type to coerce input to (None)
+  - show_default: Whether to display the default value to users (True)
+- A confirm function:
+  - text: To show for prompt
+  - default: Default value for prompt (False)
+  - abort: If True, answering no will raise an abort (False)
+  - show_default: (True)
+- An echo function, to allow easy echoing to specified out/err streams for embedding
+
+
+GLOBAL OPTIONS INHERITANCE SYSTEM
+
+@app.main()
+@clip.flag('-s')
+def a(s):
+	pass
+
+@a.subcommand()
+def b():
+	pass
+
+Valid: a -s b
+Invalid: a b -s
+
+But then:
+
+@a.subcommand()
+@a.inherit(['-s'])
+def b(s):
+	pass
+
+And now `a b -s` is valid. Furthermore:
+
+@app.main()
+@clip.flag('-s', global=False)
+def a(s):
+	pass
+
+And now `a -s b` is invalid.
+
+A subcommand can inherit an option from any level above it.
+'''
+
+
 class ClipExit(Exception):
 	def __init__(self, status):
 		self._status = status
 	def __str__(self):
 		return repr(self._status)
+
+
+def exit(status=0, message=None):
+	if message:
+		pass
+		# @TODO: Print message to stream if necessary
+	raise ClipExit(status)
 
 
 ########################################
@@ -45,6 +104,19 @@ def opt(*param_decls, **attrs):
 ########################################
 
 class Parameter(object):
+	''' @TODO: Implement the following:
+
+	- type: The type to convert the parameter into (None)
+	- required: If true, the parameter must be present in input (False)
+	- callback: A function to be executed when the parameter is matched (None)
+	- help: The help string (None)
+
+	Improvements:
+
+	- The default can be a function, and if it is, then it is called
+	  when a default value is needed
+	- Make sure nargs/required logic is sane
+	'''
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None, **attrs):
 		self._decls = param_decls
@@ -93,6 +165,17 @@ class Option(Parameter):
 	    e.g. -s
 
 	Short-form options may be globbed, e.g. -e -l -f --> -elf.
+	'''
+
+	''' @TODO:
+
+	- global: If false, this can only be used by subcommands (True)
+
+	Should we do this?
+
+	- prompt: True, or a non-empty string to prompt for user input if not set (False)
+	- confirm: If prompt is also True, this asks for confirmation (False)
+	- invisible: If prompt is also True, this hides input from the user (False)
 	'''
 
 	def __init__(self, param_decls, **attrs):
@@ -149,6 +232,11 @@ def command(name=None, **attrs):
 ########################################
 
 class Command(object):
+	''' @TODO: Implement the following:
+
+	- description: The help string to use for this command (None)
+	- epilogue: Something to print at the end of the help page (None)
+	'''
 
 	def __init__(self, name, callback, params):
 		self._name = name
