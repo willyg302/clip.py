@@ -3,36 +3,68 @@ import unittest
 import clip
 
 
-class TestParse(unittest.TestCase):
+class BaseTest(unittest.TestCase):
+	'''Base class for tests in this file.
+
+	This should:
+	  - Hold generic test cases and expected values, bound to self
+	  - Expose generic methods useful to other tests
+	'''
 
 	def setUp(self):
-		self.app = clip.App()
+		pass
 
-		@self.app.main()
-		@clip.flag('-e', '--earth')
-		@clip.flag('--love', '-l')
-		@clip.opt('--file')
-		@clip.arg('args')
-		def a(earth, love, file, args):
-			print('In a', earth, love, file, args)
+	def get_app(self):
+		app = clip.App()
+		self.a = []
+		self.b = []
+
+		@app.main()
+		@clip.flag('-a', '--apple')
+		@clip.flag('--banana', '-b')
+		@clip.opt('--file', name='filename')
+		@clip.arg('donut')
+		def a(apple, banana, filename, donut):
+			self.a = [apple, banana, filename, donut]
 
 		@a.subcommand()
 		@clip.flag('-t')
+		@clip.flag('--long-thing')
 		@clip.arg('args', nargs=-1)
-		def b(t, args):
-			print('In b', t, args)
+		def b(t, long_thing, args):
+			self.b = [t, long_thing, args]
+
+		return app
+
+
+class TestParse(BaseTest):
 
 	def test_simple(self):
-		self.assertEqual(self.app.parse('-el --file too okay b -t yum yo'.split()), {
-			'earth': True,
-			'love': True,
-			'file': 'too',
-			'args': 'okay',
+		expected = {
+			'apple': True,
+			'banana': True,
+			'filename': 'pie.txt',
+			'donut': 'chocolate',
 			'b': {
-				't': True,
+				't': False,
+				'long_thing': True,
 				'args': ['yum', 'yo']
 			}
-		})
+		}
+		actuals = [
+			'-ab --file pie.txt chocolate b --long-thing yum yo',
+			'chocolate -a --file pie.txt --banana b --long-thing yum yo'
+		]
+		for actual in actuals:
+			self.assertEqual(self.get_app().parse(actual.split()), expected)
+
+
+class TestInvoke(BaseTest):
+
+	def test_invoke(self):
+		self.get_app().run('-ab --file pie.txt chocolate b --long-thing yum yo'.split())
+		self.assertEqual(self.a, [True, True, 'pie.txt', 'chocolate'])
+		self.assertEqual(self.b, [False, True, ['yum', 'yo']])
 
 
 if __name__ == '__main__':

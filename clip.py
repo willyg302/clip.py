@@ -46,11 +46,13 @@ def opt(*param_decls, **attrs):
 
 class Parameter(object):
 
-	def __init__(self, param_decls, name=None, nargs=1, **attrs):
-		self._name = name or self._parse_name(param_decls)
+	def __init__(self, param_decls, name=None, nargs=1, default=None, **attrs):
 		self._decls = param_decls
-		self._satisfied = False  # True when this parameter has consumed tokens
+		self._name = name or self._parse_name(param_decls)
 		self._nargs = nargs
+		self._default = default
+
+		self._satisfied = False  # True when this parameter has consumed tokens
 
 	def consume(self, tokens):
 		'''Have this parameter consume some tokens.
@@ -106,12 +108,14 @@ class Option(Parameter):
 		ret = tokens[:n]
 		return tokens[n:], ret if n > 1 else ret[0]
 
+
 class Flag(Option):
 	'''A special kind of option that consumes zero tokens.
 	A flag stores a boolean that is True only if it's specified.
 	'''
 
 	def __init__(self, param_decls, **attrs):
+		attrs['default'] = False
 		Option.__init__(self, param_decls, **attrs)
 
 	def consume(self, tokens):
@@ -161,18 +165,18 @@ class Command(object):
 		return decorator
 
 	def invoke(self, parsed):
-		ret = None
 		direct_args = {k: v for k, v in parsed.iteritems() if k not in self._subcommands}
 		if self._callback is not None:
-			ret = self._callback(**direct_args)
+			self._callback(**direct_args)
 		# Invoke subcommands (realistically only one should be invoked)
 		for k, v in parsed.iteritems():
 			if k in self._subcommands:
 				self._subcommands[k].invoke(v)
-		return ret  # @TODO: Is this even useful?
 
 	def parse(self, tokens):
 		parsed = {}
+
+		# Pass 1: Forward - fill out based on input string
 		while tokens:
 			token = tokens.pop(0)
 			# 1. Is it a subcommand? Pass off to subcommand.
@@ -195,6 +199,9 @@ class Command(object):
 				else:
 					# @TODO better error message
 					raise AttributeError('Weird token encountered: {}'.format(token))
+
+		# Pass 2: Backward - fill out un-called parameters
+		parsed.update({param._name: param._default for param in self._params if not param._satisfied})
 
 		return parsed
 
