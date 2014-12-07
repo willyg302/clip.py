@@ -7,7 +7,6 @@ import itertools
 
 ''' @TODO:
 
-- Allow user to set out/err streams to print everything to (help, etc.)
 - A prompt function:
   - text: To show for prompt
   - default: Default if no input given, if None then prompt will repeat until aborted (None)
@@ -20,7 +19,9 @@ import itertools
   - default: Default value for prompt (False)
   - abort: If True, answering no will raise an abort (False)
   - show_default: (True)
-- An echo function, to allow easy echoing to specified out/err streams for embedding
+
+
+HELP TEXT!
 
 
 GLOBAL OPTIONS INHERITANCE SYSTEM
@@ -54,7 +55,37 @@ def a(s):
 And now `a -s b` is invalid.
 
 A subcommand can inherit an option from any level above it.
+
+
+
+PROVIDE A WAY TO PROGRAMMATICALLY RESET THE APP:
+Right now, when app.run() is called from test code, the app cannot be run again.
+This is because parsing is destructive for parameter/command state.
+Upon rerunning, they are already satisfied and will error out.
 '''
+
+
+class ClipGlobals(object):
+
+	def __init__(self):
+		self._stdout = sys.stdout
+		self._stderr = sys.stderr
+
+	def echo(self, message, err=False):
+		stream = self._stderr if err else self._stdout
+		stream.write(message)
+
+	def set_stdout(self, stream):
+		self._stdout = stream
+
+	def set_stderr(self, stream):
+		self._stderr = stream
+
+
+clip_globals = ClipGlobals()
+
+def echo(message, err=False):
+	clip_globals.echo(message, err)
 
 
 class ClipExit(Exception):
@@ -66,8 +97,7 @@ class ClipExit(Exception):
 
 def exit(status=0, message=None):
 	if message:
-		pass
-		# @TODO: Print message to stream if necessary
+		echo(message, err=True)
 	raise ClipExit(status)
 
 
@@ -118,11 +148,16 @@ class Parameter(object):
 	- Make sure nargs/required logic is sane
 	'''
 
-	def __init__(self, param_decls, name=None, nargs=1, default=None, **attrs):
+	def __init__(self, param_decls, name=None, nargs=1, default=None,
+		         type=None, required=False, callback=None, help=None):
 		self._decls = param_decls
 		self._name = name or self._parse_name(param_decls)
 		self._nargs = nargs
 		self._default = default
+		self._type = type
+		self._required = required
+		self._callback = callback
+		self._help = help
 
 		self._satisfied = False  # True when this parameter has consumed tokens
 
@@ -238,10 +273,12 @@ class Command(object):
 	- epilogue: Something to print at the end of the help page (None)
 	'''
 
-	def __init__(self, name, callback, params):
+	def __init__(self, name, callback, params, description=None, epilogue=None):
 		self._name = name
 		self._callback = callback
 		self._params = params
+		self._description = description
+		self._epilogue = epilogue
 
 		self._subcommands = {}
 
@@ -296,7 +333,12 @@ class Command(object):
 
 class App(object):
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, stdout=None, stderr=None):
+		if stdout is not None:
+			clip_globals.set_stdout(stdout)
+		if stderr is not None:
+			clip_globals.set_stderr(stderr)
+
 		self._main = None
 
 	def main(self, name=None, **attrs):

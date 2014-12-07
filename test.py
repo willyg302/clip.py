@@ -67,8 +67,7 @@ class TestInvoke(BaseTest):
 		self.assertEqual(self.b, [False, True, ['yum', 'yo']])
 
 
-if __name__ == '__main__':
-	unittest.main()
+
 
 
 
@@ -102,3 +101,66 @@ Parser should generate: {
 	'words': ['hello', 'world!']
 }
 '''
+
+
+class Stream(object):
+	def __init__(self):
+		self._writes = []
+
+	def write(self, message):
+		self._writes.append(message)
+
+
+class TestEmbedding(BaseTest):
+
+	def test_streams(self):
+		out = Stream()
+		err = Stream()
+		app = clip.App(stdout=out, stderr=err)
+
+		@app.main()
+		@clip.opt('--to-out')
+		@clip.opt('--to-err')
+		def a(to_out, to_err):
+			clip.echo(to_out)
+			clip.echo(to_err, err=True)
+
+		app.run('--to-out out1 --to-err err1'.split())
+		self.assertEqual(out._writes, ['out1'])
+		self.assertEqual(err._writes, ['err1'])
+
+
+# Embedded example
+'''
+
+import sys
+import clip
+import c
+
+class StdStream(object):
+    def __init__(self, stream=None):
+        self._stream = sys.stdout if stream is None else stream
+
+    def write(self, message):
+        self._stream.write(message)
+
+stdout = StdStream()
+stderr = StdStream(sys.stderr)
+
+app = clip.App(stdout=stdout, stderr=stderr, module=c)
+app.arg('--version', help='Print the version', action='version',
+        version=c.__version__ if '__version__' in dir(c) else 'No version specified')
+
+c._run.func_globals['cli'] = app
+try:
+    c._run(sys.argv[1:])
+except clip.ClipExit as e:
+    print 'Exit status: {}'.format(e.status)
+
+
+'''
+
+
+
+if __name__ == '__main__':
+	unittest.main()
