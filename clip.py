@@ -8,6 +8,15 @@ import sys
 import itertools
 
 
+########################################
+# COMPATIBILITY
+########################################
+
+PY2 = sys.version_info[0] == 2
+
+raw_input = raw_input if PY2 else input
+
+
 ''' @TODO:
 
 - A prompt function:
@@ -22,9 +31,6 @@ import itertools
   - default: Default value for prompt (False)
   - abort: If True, answering no will raise an abort (False)
   - show_default: (True)
-
-
-HELP TEXT!
 
 
 GLOBAL OPTIONS INHERITANCE SYSTEM
@@ -58,15 +64,12 @@ def a(s):
 And now `a -s b` is invalid.
 
 A subcommand can inherit an option from any level above it.
-
-
-
-PROVIDE A WAY TO PROGRAMMATICALLY RESET THE APP:
-Right now, when app.run() is called from test code, the app cannot be run again.
-This is because parsing is destructive for parameter/command state.
-Upon rerunning, they are already satisfied and will error out.
 '''
 
+
+########################################
+# GLOBAL METHODS
+########################################
 
 class ClipGlobals(object):
 
@@ -127,11 +130,11 @@ def _make_param(cls, param_decls, **attrs):
 def arg(*param_decls, **attrs):
 	return _make_param(Argument, param_decls, **attrs)
 
-def flag(*param_decls, **attrs):
-	return _make_param(Flag, param_decls, **attrs)
-
 def opt(*param_decls, **attrs):
 	return _make_param(Option, param_decls, **attrs)
+
+def flag(*param_decls, **attrs):
+	return _make_param(Flag, param_decls, **attrs)
 
 
 ########################################
@@ -139,14 +142,28 @@ def opt(*param_decls, **attrs):
 ########################################
 
 class Parameter(object):
-	''' @TODO: Implement the following:
+	'''Base class for all parameters associated with a command.
 
-	- type: The type to convert the parameter into (None)
-	- required: If true, the parameter must be present in input (False)
-	- callback: A function to be executed when the parameter is matched (None)
-	- hidden: If True, this is not passed to the calling function and not put
-	          in the parsed object. Useful for callback functions like help/version.
-	- help: The help string (None)
+	A parameter consists of several *parameter declarations* followed by
+	keyword *attributes*. The parameter declarations represent the parameter
+	as it would be entered by users, e.g. 'arg' or ('-o', '--opt').
+
+	Attributes:
+	  - name: The name of this parameter. If not specified, a name will be
+	    inferred based on the parameter declarations.
+	  - nargs: The number of args this parameter consumes, -1 for infinite.
+	  - default: The value for this parameter if none is given.
+	  - type: A type to coerce the parameter's value into.
+	  - required: If true, the parameter must be specified in the input.
+	  - callback: A function to invoke once this parameter has been matched
+	    in the input. It takes a single argument, the value of the parameter.
+	  - hidden: If True, this parameter will not be passed to the owning
+	    command's function. This is useful for help/version flags.
+	  - help: Help text for this parameter.
+	'''
+
+
+	''' @TODO: Implement type and required
 
 	Improvements:
 
@@ -156,9 +173,10 @@ class Parameter(object):
 	'''
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None,
-		         type=None, required=False, callback=None, hidden=False, help=None):
+		         type=None, required=False, callback=None, hidden=False,
+		         help=None):
 		self._decls = param_decls
-		self._name = name or self._parse_name(param_decls)
+		self._name = name or self.parse_name(param_decls)
 		self._nargs = nargs
 		self._default = default
 		self._type = type
@@ -167,19 +185,37 @@ class Parameter(object):
 		self._hidden = hidden
 		self._help = help
 
+		self.reset()  # Do an initial reset to prime the parameter
+
+	def reset(self):
 		self._satisfied = False  # True when this parameter has consumed tokens
+
+	def parse_name(self, decls):
+		raise NotImplementedError('parse_name/1 must be implemented by child classes')
 
 	def consume(self, tokens):
 		'''Have this parameter consume some tokens.
+
 		Returns the modified tokens array and the value associated with this
-		parameter to store. For example, given ['-a', 'one', 'two'] where
-		-a is an option that consumes one token, this will return:
-		['two'], 'one' (and 'one' will be stored as the value of 'a').
+		parameter to store. For example, given:
+
+		    ['-a', 'one', 'two']
+
+		where -a is an option that consumes one token, this will return:
+
+		    ['two'], 'one'
+
+		That is, 'one' was consumed and is this parameter's value.
 		'''
-		raise NotImplementedError('consume/1 should be implemented in child classes')
+		raise NotImplementedError('consume/1 must be implemented by child classes')
+		# @TODO: Fix consume logic.
+		# In particular, it feels weird to duplicate logic across argument/option
+		# and THEN have a custom implementation for flags.
+		# It's also flaky to have child classes call Parameter.post_consume/1
 
 	def post_consume(self, consumed):
 		self._satisfied = True
+		# Parameter has been matched, so invoke the callback if any
 		if self._callback is not None:
 			self._callback(consumed)
 
@@ -191,9 +227,9 @@ class Argument(Parameter):
 	def __init__(self, param_decls, **attrs):
 		Parameter.__init__(self, param_decls, **attrs)
 
-	def _parse_name(self, decls):
+	def parse_name(self, decls):
 		if not len(decls) == 1:
-			raise TypeError('Arguments take exactly one parameter declaration, got {}'.format(len(decls)))
+			raise TypeError('Arguments take exactly 1 parameter declaration, got {}'.format(len(decls)))
 		return decls[0]
 
 	def consume(self, tokens):
@@ -204,7 +240,7 @@ class Argument(Parameter):
 
 
 class Option(Parameter):
-	'''Describes (usually) optional parameters.
+	'''A (usually) optional parameter.
 
 	An option may come in either a short or long form:
 	  - The long form begins with a double dash and is dash-delimited,
@@ -229,7 +265,8 @@ class Option(Parameter):
 	def __init__(self, param_decls, **attrs):
 		Parameter.__init__(self, param_decls, **attrs)
 
-	def _parse_name(self, decls):
+	def parse_name(self, decls):
+		# @TODO: Validate parameter declaration logic?
 		longest = sorted(list(decls), key=lambda x: len(x))[-1]
 		return longest[2:].replace('-', '_').lower() if len(longest) > 2 else longest[1:]
 
@@ -241,8 +278,9 @@ class Option(Parameter):
 
 
 class Flag(Option):
-	'''A special kind of option that consumes zero tokens.
-	A flag stores a boolean that is True only if it's specified.
+	'''A special kind of option that is True only if it appears.
+
+	Flags consume zero tokens.
 	'''
 
 	def __init__(self, param_decls, **attrs):
@@ -281,19 +319,13 @@ def command(name=None, **attrs):
 ########################################
 
 class Command(object):
-	''' @TODO: Implement the following:
 
-	- description: The help string to use for this command (None)
-	- epilogue: Something to print at the end of the help page (None)
-	'''
-
-	def __init__(self, name, callback, params, description=None, epilogue=None, help=None):
+	def __init__(self, name, callback, params, description=None, epilogue=None):
 		self._name = name
 		self._callback = callback
 		self._params = params
 		self._description = description
 		self._epilogue = epilogue
-		self._help = help
 
 		self._subcommands = {}
 		# Add help to every command
@@ -306,16 +338,8 @@ class Command(object):
 			return cmd
 		return decorator
 
-	def invoke(self, parsed):
-		direct_args = {k: v for k, v in parsed.iteritems() if k not in self._subcommands}
-		if self._callback is not None:
-			self._callback(**direct_args)
-		# Invoke subcommands (realistically only one should be invoked)
-		for k, v in parsed.iteritems():
-			if k in self._subcommands:
-				self._subcommands[k].invoke(v)
-
 	def parse(self, tokens):
+		# @TODO: Clean up
 		parsed = {}
 
 		# Pass 1: Forward - fill out based on input string
@@ -351,8 +375,25 @@ class Command(object):
 
 		return parsed
 
+	def invoke(self, parsed):
+		# First invoke this command's callback
+		self._callback(**{k: v for k, v in parsed.iteritems() if k not in self._subcommands})
+		# Invoke subcommands (realistically only one should be invoked)
+		for k, v in parsed.iteritems():
+			if k in self._subcommands:
+				self._subcommands[k].invoke(v)
+
+	def reset(self):
+		# Reset all parameters associated with this command
+		for param in self._params:
+			param.reset()
+		# Recurse into subcommands
+		for v in self._subcommands.values():
+			v.reset()
 
 	def help(self, value):
+		# @TODO: Clean up
+		# Also, add all the other things like defaults, types, etc.
 		help_parts = []
 
 		# Header
@@ -391,6 +432,10 @@ class Command(object):
 		echo('\n\n'.join(help_parts))
 
 
+########################################
+# APP CLASS
+########################################
+
 class App(object):
 
 	def __init__(self, stdout=None, stderr=None):
@@ -407,7 +452,6 @@ class App(object):
 			self._main = cmd
 			return cmd
 		return decorator
-
 
 	def parse(self, tokens):
 		'''Parses a list of tokens into a JSON-serializable object.
@@ -430,20 +474,26 @@ class App(object):
 		def is_globbed(s):
 			return len(s) > 2 and s.startswith('-') and not s.startswith('--')
 		expanded = [["-" + c for c in list(token[1:])] if is_globbed(token) else [token] for token in tokens]
-		flattened = list(itertools.chain.from_iterable(expanded))
 
-		# Parsing: pass off to main command
-		return self._main.parse(flattened)
+		# Parsing: pass off to main command after flattening expanded tokens list
+		return self._main.parse(list(itertools.chain.from_iterable(expanded)))
 
 	def invoke(self, parsed):
-		'''Takes a parsed argument object and applies it to the CLI.
+		'''Invokes the app, given a parsed token object.
 		'''
-		#print(parsed)
 		self._main.invoke(parsed)
+
+	def reset(self):
+		'''Returns the app to its initial state.
+
+		This is necessary because parsing/invoking causes state to be stored
+		in the commands and parameters, meaning that the app cannot be run
+		again. After a reset, the app is freely available for reuse.
+		'''
+		self._main.reset()
 
 	def run(self, tokens=None):
 		if tokens is None:
 			tokens = sys.argv[1:]
-
-		parsed = self.parse(tokens)
-		self.invoke(parsed)
+		self.invoke(self.parse(tokens))
+		self.reset()  # Clean up so the app can be used again

@@ -15,14 +15,14 @@ class BaseTest(unittest.TestCase):
 	'''Base class for tests in this file.
 
 	This should:
-	  - Hold generic test cases and expected values, bound to self
+	  - Hold generic test apps and expected values, bound to self
 	  - Expose generic methods useful to other tests
 	'''
 
 	def setUp(self):
 		pass
 
-	def make_kitchen_sink_app(self, embedded=False):
+	def make_kitchen_sink_app(self):
 		app = clip.App()
 		self.a = []
 		self.b = []
@@ -50,12 +50,12 @@ class BaseTest(unittest.TestCase):
 		return app, out, err
 
 	def make_embedded_app(self):
-		app, out err = self.embed()
+		app, out, err = self.embed()
 
 		@app.main()
 		@clip.opt('--to-out')
 		@clip.opt('--to-err')
-		def a(to_out, to_err):
+		def f(to_out, to_err):
 			clip.echo(to_out)
 			clip.echo(to_err, err=True)
 
@@ -83,7 +83,7 @@ class TestGlobals(BaseTest):
 
 class TestParse(BaseTest):
 
-	def test_simple(self):
+	def test_kitchen_sink(self):
 		expected = {
 			'apple': True,
 			'banana': True,
@@ -110,48 +110,39 @@ class TestInvoke(BaseTest):
 		self.assertEqual(self.a, [True, True, 'pie.txt', 'chocolate'])
 		self.assertEqual(self.b, [False, True, ['yum', 'yo']])
 
+	def test_reset(self):
+		app = self.make_kitchen_sink_app()
+		app.run('b a n a n a'.split())
+		self.assertEqual(self.b[2], 'a n a n a'.split())
+		app.run('b o o p'.split())
+		self.assertEqual(self.b[2], 'o o p'.split())
 
+	def test_version(self):
+		app, out, _ = self.embed()
 
+		def print_version(value):
+			clip.echo('Version 0.0.0')
+			clip.exit()
+
+		@app.main()
+		@clip.flag('--version', callback=print_version, hidden=True)
+		def f():
+			clip.echo('Should not be called')
+
+		try:
+			app.run('--version'.split())
+		except clip.ClipExit:
+			pass
+
+		self.assertEqual(out._writes, ['Version 0.0.0\n'])
 
 
 class TestHelp(BaseTest):
 
 	def test_help(self):
 		pass
+		# @TODO
 		#self.make_kitchen_sink_app().run('b -h'.split())
-
-
-
-'''
-try:
-	app.run()
-except clip.ClipExit as e:
-	print(e)
-'''
-
-'''
-app2 = clip.App()
-
-@app2.main()
-@clip.arg('words', nargs=-1)
-def echo(words):
-	print(' '.join(words))
-
-try:
-	app2.run('hello world!'.split())
-except clip.ClipExit:
-	pass
-'''
-
-
-'''
-Parser should generate: {
-	'words': ['hello', 'world!']
-}
-'''
-
-
-
 
 
 class TestEmbedding(BaseTest):
@@ -170,38 +161,6 @@ class TestEmbedding(BaseTest):
 		except clip.ClipExit:
 			pass
 		self.assertEqual(err._writes, ['Exiting!\n'])
-
-
-# Embedded example
-'''
-
-import sys
-import clip
-import c
-
-class StdStream(object):
-    def __init__(self, stream=None):
-        self._stream = sys.stdout if stream is None else stream
-
-    def write(self, message):
-        self._stream.write(message)
-
-stdout = StdStream()
-stderr = StdStream(sys.stderr)
-
-app = clip.App(stdout=stdout, stderr=stderr, module=c)
-app.arg('--version', help='Print the version', action='version',
-        version=c.__version__ if '__version__' in dir(c) else 'No version specified')
-
-c._run.func_globals['cli'] = app
-try:
-    c._run(sys.argv[1:])
-except clip.ClipExit as e:
-    print 'Exit status: {}'.format(e.status)
-
-
-'''
-
 
 
 if __name__ == '__main__':
