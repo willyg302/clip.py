@@ -1,5 +1,8 @@
 '''
 clip.py: Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
+
+:copyright: (c) 2014 William Gaul
+:license: MIT, see LICENSE for more details
 '''
 import sys
 import itertools
@@ -68,12 +71,14 @@ Upon rerunning, they are already satisfied and will error out.
 class ClipGlobals(object):
 
 	def __init__(self):
-		self._stdout = sys.stdout
-		self._stderr = sys.stderr
+		self._stdout = None
+		self._stderr = None
 
 	def echo(self, message, err=False):
 		stream = self._stderr if err else self._stdout
-		stream.write(message)
+		if stream is None:
+			raise TypeError('clip {} stream has not been initialized'.format('err' if err else 'out'))
+		stream.write(str(message) + "\n")
 
 	def set_stdout(self, stream):
 		self._stdout = stream
@@ -139,6 +144,8 @@ class Parameter(object):
 	- type: The type to convert the parameter into (None)
 	- required: If true, the parameter must be present in input (False)
 	- callback: A function to be executed when the parameter is matched (None)
+	- hidden: If True, this is not passed to the calling function and not put
+	          in the parsed object. Useful for callback functions like help/version.
 	- help: The help string (None)
 
 	Improvements:
@@ -149,7 +156,7 @@ class Parameter(object):
 	'''
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None,
-		         type=None, required=False, callback=None, help=None):
+		         type=None, required=False, callback=None, hidden=False, help=None):
 		self._decls = param_decls
 		self._name = name or self._parse_name(param_decls)
 		self._nargs = nargs
@@ -157,6 +164,7 @@ class Parameter(object):
 		self._type = type
 		self._required = required
 		self._callback = callback
+		self._hidden = hidden
 		self._help = help
 
 		self._satisfied = False  # True when this parameter has consumed tokens
@@ -168,7 +176,12 @@ class Parameter(object):
 		-a is an option that consumes one token, this will return:
 		['two'], 'one' (and 'one' will be stored as the value of 'a').
 		'''
-		pass
+		raise NotImplementedError('consume/1 should be implemented in child classes')
+
+	def post_consume(self, consumed):
+		self._satisfied = True
+		if self._callback is not None:
+			self._callback(consumed)
 
 
 class Argument(Parameter):
@@ -184,10 +197,10 @@ class Argument(Parameter):
 		return decls[0]
 
 	def consume(self, tokens):
-		self._satisfied = True
 		n = len(tokens) if self._nargs == -1 else self._nargs
-		ret = tokens[:n]
-		return tokens[n:], ret if n > 1 else ret[0]
+		consumed = tokens[:n] if n > 1 else tokens[:n][0]
+		Parameter.post_consume(self, consumed)
+		return tokens[n:], consumed
 
 
 class Option(Parameter):
@@ -221,10 +234,10 @@ class Option(Parameter):
 		return longest[2:].replace('-', '_').lower() if len(longest) > 2 else longest[1:]
 
 	def consume(self, tokens):
-		self._satisfied = True
 		n = len(tokens) if self._nargs == -1 else self._nargs
-		ret = tokens[:n]
-		return tokens[n:], ret if n > 1 else ret[0]
+		consumed = tokens[:n] if n > 1 else tokens[:n][0]
+		Parameter.post_consume(self, consumed)
+		return tokens[n:], consumed
 
 
 class Flag(Option):
@@ -237,8 +250,9 @@ class Flag(Option):
 		Option.__init__(self, param_decls, **attrs)
 
 	def consume(self, tokens):
-		self._satisfied = True
-		return tokens, True
+		consumed = True
+		Parameter.post_consume(self, consumed)
+		return tokens, consumed
 
 
 ########################################
@@ -273,14 +287,17 @@ class Command(object):
 	- epilogue: Something to print at the end of the help page (None)
 	'''
 
-	def __init__(self, name, callback, params, description=None, epilogue=None):
+	def __init__(self, name, callback, params, description=None, epilogue=None, help=None):
 		self._name = name
 		self._callback = callback
 		self._params = params
 		self._description = description
 		self._epilogue = epilogue
+		self._help = help
 
 		self._subcommands = {}
+		# Add help to every command
+		self._params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
 
 	def subcommand(self, name=None, **attrs):
 		def decorator(f):
@@ -312,13 +329,17 @@ class Command(object):
 			elif token.startswith('-'):
 				for param in self._params:
 					if token in param._decls:
-						tokens, parsed[param._name] = param.consume(tokens)
+						tokens, consumed = param.consume(tokens)
+						if not param._hidden:
+							parsed[param._name] = consumed
 						break
 			# 3. Try to satisfy positional parameters (arguments).
 			else:
 				for param in self._params:
 					if isinstance(param, Argument) and not param._satisfied:
-						tokens, parsed[param._name] = param.consume([token] + tokens)
+						tokens, consumed = param.consume([token] + tokens)
+						if not param._hidden:
+							parsed[param._name] = consumed
 						break
 			# 4. Error out.
 				else:
@@ -326,25 +347,62 @@ class Command(object):
 					raise AttributeError('Weird token encountered: {}'.format(token))
 
 		# Pass 2: Backward - fill out un-called parameters
-		parsed.update({param._name: param._default for param in self._params if not param._satisfied})
+		parsed.update({param._name: param._default for param in self._params if not param._satisfied and not param._hidden})
 
 		return parsed
+
+
+	def help(self, value):
+		help_parts = []
+
+		# Header
+		header = self._name
+		if self._description is not None:
+			header = '{}: {}'.format(header, self._description)
+		help_parts.append(header)
+
+		# Usage
+		help_parts.append('Usage: {} {{arguments/options}} {{subcommand}}'.format(self._name))
+
+		# Arguments
+		args = [param for param in self._params if isinstance(param, Argument)]
+		if args:
+			args_width = max(len(arg._name) for arg in args) + 2
+			arguments = ['  {}{}'.format(arg._name.ljust(args_width), arg._help or '') for arg in args]
+			help_parts.append('\n'.join(['Arguments:'] + arguments))
+
+		# Options
+		opts = [param for param in self._params if isinstance(param, Option)]
+		if opts:
+			opts_width = max(len(', '.join(opt._decls)) for opt in opts) + 2
+			options = ['  {}{}'.format(', '.join(opt._decls).ljust(opts_width), opt._help or '') for opt in opts]
+			help_parts.append('\n'.join(['Options:'] + options))
+
+		# Subcommands
+		if self._subcommands:
+			subs_width = max(len(k) for k, v in self._subcommands.iteritems()) + 2
+			subcommands = ['  {}{}'.format(k.ljust(subs_width), v._description or '') for k, v in self._subcommands.iteritems()]
+			help_parts.append('\n'.join(['Subcommands:'] + subcommands))
+
+		# Epilogue
+		if self._epilogue is not None:
+			help_parts.append(self._epilogue)
+
+		echo('\n\n'.join(help_parts))
 
 
 class App(object):
 
 	def __init__(self, stdout=None, stderr=None):
-		if stdout is not None:
-			clip_globals.set_stdout(stdout)
-		if stderr is not None:
-			clip_globals.set_stderr(stderr)
+		clip_globals.set_stdout(stdout or sys.stdout)
+		clip_globals.set_stderr(stderr or sys.stderr)
 
 		self._main = None
 
 	def main(self, name=None, **attrs):
 		def decorator(f):
 			if self._main is not None:
-				raise AttributeError('A main function has already been assigned')
+				raise AttributeError('A main function has already been assigned to this app')
 			cmd = command(name, **attrs)(f)
 			self._main = cmd
 			return cmd
@@ -358,7 +416,7 @@ class App(object):
 
 		Precedence order:
 		  1. Parameters with active context. For example, an Option with
-		     nargs='+' will gobble all the remaining tokens.
+		     nargs=-1 will gobble all the remaining tokens.
 		  2. Subcommands.
 		  3. Parameters.
 
@@ -366,12 +424,9 @@ class App(object):
 		subcommands. Subcommands are encoded as nested objects. Multiple
 		parameters are encoded as lists. All other values are encoded as
 		parameter-specified data types, or strings if not specified.
-
-		NOTE: no validation occurs at this step. During the handle() phase
-		the JSON object will be applied and any errors raised.
 		'''
 		# Pre-parsing:
-		#   1. Expand globbed options: -elf --> -e -l -f
+		#   1. Expand globbed options: -abc --> -a -b -c
 		def is_globbed(s):
 			return len(s) > 2 and s.startswith('-') and not s.startswith('--')
 		expanded = [["-" + c for c in list(token[1:])] if is_globbed(token) else [token] for token in tokens]
@@ -380,7 +435,7 @@ class App(object):
 		# Parsing: pass off to main command
 		return self._main.parse(flattened)
 
-	def handle(self, parsed):
+	def invoke(self, parsed):
 		'''Takes a parsed argument object and applies it to the CLI.
 		'''
 		#print(parsed)
@@ -391,4 +446,4 @@ class App(object):
 			tokens = sys.argv[1:]
 
 		parsed = self.parse(tokens)
-		self.handle(parsed)
+		self.invoke(parsed)

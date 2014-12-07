@@ -3,6 +3,14 @@ import unittest
 import clip
 
 
+class Stream(object):
+	def __init__(self):
+		self._writes = []
+
+	def write(self, message):
+		self._writes.append(message)
+
+
 class BaseTest(unittest.TestCase):
 	'''Base class for tests in this file.
 
@@ -14,7 +22,7 @@ class BaseTest(unittest.TestCase):
 	def setUp(self):
 		pass
 
-	def get_app(self):
+	def make_kitchen_sink_app(self, embedded=False):
 		app = clip.App()
 		self.a = []
 		self.b = []
@@ -36,6 +44,42 @@ class BaseTest(unittest.TestCase):
 
 		return app
 
+	def embed(self):
+		out, err = Stream(), Stream()
+		app = clip.App(stdout=out, stderr=err)
+		return app, out, err
+
+	def make_embedded_app(self):
+		app, out err = self.embed()
+
+		@app.main()
+		@clip.opt('--to-out')
+		@clip.opt('--to-err')
+		def a(to_out, to_err):
+			clip.echo(to_out)
+			clip.echo(to_err, err=True)
+
+		return app, out, err
+
+
+class TestGlobals(BaseTest):
+
+	def test_clip_globals(self):
+		out, err = Stream(), Stream()
+		cg = clip.ClipGlobals()
+		cg.set_stdout(out)
+		cg.set_stderr(err)
+		cg.echo('My my')
+		cg.echo('What have I done?', err=True)
+		self.assertEqual(out._writes, ['My my\n'])
+		self.assertEqual(err._writes, ['What have I done?\n'])
+
+	def test_exit(self):
+		try:
+			clip.exit(1)
+		except clip.ClipExit as e:
+			self.assertEqual(e._status, 1)
+
 
 class TestParse(BaseTest):
 
@@ -56,13 +100,13 @@ class TestParse(BaseTest):
 			'chocolate -a --file pie.txt --banana b --long-thing yum yo'
 		]
 		for actual in actuals:
-			self.assertEqual(self.get_app().parse(actual.split()), expected)
+			self.assertEqual(self.make_kitchen_sink_app().parse(actual.split()), expected)
 
 
 class TestInvoke(BaseTest):
 
 	def test_invoke(self):
-		self.get_app().run('-ab --file pie.txt chocolate b --long-thing yum yo'.split())
+		self.make_kitchen_sink_app().run('-ab --file pie.txt chocolate b --long-thing yum yo'.split())
 		self.assertEqual(self.a, [True, True, 'pie.txt', 'chocolate'])
 		self.assertEqual(self.b, [False, True, ['yum', 'yo']])
 
@@ -70,7 +114,11 @@ class TestInvoke(BaseTest):
 
 
 
+class TestHelp(BaseTest):
 
+	def test_help(self):
+		pass
+		#self.make_kitchen_sink_app().run('b -h'.split())
 
 
 
@@ -103,31 +151,25 @@ Parser should generate: {
 '''
 
 
-class Stream(object):
-	def __init__(self):
-		self._writes = []
 
-	def write(self, message):
-		self._writes.append(message)
 
 
 class TestEmbedding(BaseTest):
 
 	def test_streams(self):
-		out = Stream()
-		err = Stream()
-		app = clip.App(stdout=out, stderr=err)
-
-		@app.main()
-		@clip.opt('--to-out')
-		@clip.opt('--to-err')
-		def a(to_out, to_err):
-			clip.echo(to_out)
-			clip.echo(to_err, err=True)
-
+		app, out, err = self.make_embedded_app()
 		app.run('--to-out out1 --to-err err1'.split())
-		self.assertEqual(out._writes, ['out1'])
-		self.assertEqual(err._writes, ['err1'])
+		self.assertEqual(out._writes, ['out1\n'])
+		self.assertEqual(err._writes, ['err1\n'])
+
+	def test_exit_message(self):
+		# Exiting should print a message to err
+		_, _, err = self.make_embedded_app()
+		try:
+			clip.exit(message='Exiting!')
+		except clip.ClipExit:
+			pass
+		self.assertEqual(err._writes, ['Exiting!\n'])
 
 
 # Embedded example

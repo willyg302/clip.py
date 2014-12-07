@@ -6,7 +6,7 @@
 
 ### Why use clip instead of [other CLI tool]?
 
-I have used a whole bunch of Python CLI tools: [docopt](http://docopt.org/), [argparse](https://docs.python.org/3/library/argparse.html) (the Python standard), [Click](http://click.pocoo.org/3/), and even more obscure ones like [Aaargh](https://github.com/wbolster/aaargh), just to name a few. All of these work very well and do their intended jobs. There is nothing inherently wrong with any of them.
+There are a whole bunch of Python CLI tools: [docopt](http://docopt.org/), [argparse](https://docs.python.org/3/library/argparse.html) (the Python standard), [Click](http://click.pocoo.org/3/), and even more obscure ones like [Aaargh](https://github.com/wbolster/aaargh), just to name a few. All of these work very well and do their intended jobs. There is nothing inherently wrong with any of them.
 
 However, every CLI tool has different goals. clip exists to satisfy two pain points that I feel other tools don't address fully:
 
