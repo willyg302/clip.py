@@ -149,6 +149,11 @@ class TestParse(BaseTest):
 		self.assertTrue('Missing' in err._writes[0])
 
 
+	# @TODO:
+	#   - Test type
+	#   - Test required/nargs
+
+
 class TestInvoke(BaseTest):
 
 	def test_invoke(self):
@@ -187,6 +192,23 @@ class TestHelp(BaseTest):
 		pass
 		# @TODO
 		#self.make_kitchen_sink_app().run('b -h'.split())
+
+
+
+'''
+HANDLING ERRORS:
+
+$ test.py -h
+Usage: test.py [OPTIONS] COMMAND [ARGS]...
+
+Error: no such option: -h
+$ test.py asdajnd
+Usage: test.py [OPTIONS] COMMAND [ARGS]...
+
+Error: No such command "asdajnd".
+'''
+
+
 
 
 class TestEmbedding(BaseTest):

@@ -141,6 +141,9 @@ def confirm(prompt, default=None, show_default=True, abort=False):
 # PARAMETER METHODS
 ########################################
 
+def _convert_type(t, default=None):
+	return t or (type(default) if default is not None else None)
+
 def _memoize_param(f, param):
 	if isinstance(f, Command):
 		f._params.append(param)
@@ -181,23 +184,15 @@ class Parameter(object):
 	    inferred based on the parameter declarations.
 	  - nargs: The number of args this parameter consumes, -1 for infinite.
 	  - default: The value for this parameter if none is given.
-	  - type: A type to coerce the parameter's value into.
+	  - type: A type to coerce the parameter's value into. If no type is
+	    provided, the type of the default value is used. If no default value
+	    is provided, the type remains a string.
 	  - required: If true, the parameter must be specified in the input.
 	  - callback: A function to invoke once this parameter has been matched
 	    in the input. It takes a single argument, the value of the parameter.
 	  - hidden: If True, this parameter will not be passed to the owning
 	    command's function. This is useful for help/version flags.
 	  - help: Help text for this parameter.
-	'''
-
-
-	''' @TODO: Implement type
-
-	Improvements:
-
-	- The default can be a function, and if it is, then it is called
-	  when a default value is needed
-	- Make sure nargs/required logic is sane
 	'''
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None,
@@ -207,7 +202,7 @@ class Parameter(object):
 		self._name = name or self.parse_name(param_decls)
 		self._nargs = nargs
 		self._default = default
-		self._type = type
+		self._type = _convert_type(type, default)
 		self._required = required
 		self._callback = callback
 		self._hidden = hidden
@@ -217,6 +212,18 @@ class Parameter(object):
 
 	def reset(self):
 		self._satisfied = False  # True when this parameter has consumed tokens
+
+	def name(self):
+		return self._name
+
+	def required(self):
+		return self._required
+
+	def hidden(self):
+		return self._hidden
+
+	def satisfied(self):
+		return self._satisfied
 
 	def parse_name(self, decls):
 		raise NotImplementedError('parse_name/1 must be implemented by child classes')
@@ -235,17 +242,25 @@ class Parameter(object):
 
 		That is, 'one' was consumed and is this parameter's value.
 		'''
-		raise NotImplementedError('consume/1 must be implemented by child classes')
-		# @TODO: Fix consume logic.
-		# In particular, it feels weird to duplicate logic across argument/option
-		# and THEN have a custom implementation for flags.
-		# It's also flaky to have child classes call Parameter.post_consume/1
+		n = len(tokens) if self._nargs == -1 else self._nargs
+		# @TODO: Wrap ValueError when an invalid parameter type is given
+		l = [self._type(e) if self._type is not None else e for e in tokens[:n]]
+		consumed = l if n != 1 else l[0]
+		self.post_consume(consumed)
+		return tokens[n:], consumed
 
 	def post_consume(self, consumed):
 		self._satisfied = True
 		# Parameter has been matched, so invoke the callback if any
 		if self._callback is not None:
 			self._callback(consumed)
+
+	def get_default(self):
+		# The provided default can be a function, whose return value will be used
+		return self._default() if hasattr(self._default, '__call__') else self._default
+
+	def matches(self, token):
+		return not self.satisfied()
 
 
 class Argument(Parameter):
@@ -261,22 +276,14 @@ class Argument(Parameter):
 		return decls[0]
 
 	def consume(self, tokens):
-		n = len(tokens) if self._nargs == -1 else self._nargs
-		consumed = tokens[:n] if n > 1 else tokens[:n][0]
-		Parameter.post_consume(self, consumed)
-		return tokens[n:], consumed
+		return Parameter.consume(self, tokens)
+
+	def matches(self, token):
+		return Parameter.matches(self, token) and not token.startswith('-')
 
 
 class Option(Parameter):
 	'''A (usually) optional parameter.
-
-	An option may come in either a short or long form:
-	  - The long form begins with a double dash and is dash-delimited,
-	    e.g. --some-option
-	  - The short form begins with a single dash is one letter long,
-	    e.g. -s
-
-	Short-form options may be globbed, e.g. -e -l -f --> -elf.
 	'''
 
 	''' @TODO:
@@ -299,23 +306,24 @@ class Option(Parameter):
 		return longest[2:].replace('-', '_').lower() if len(longest) > 2 else longest[1:]
 
 	def consume(self, tokens):
-		n = len(tokens) if self._nargs == -1 else self._nargs
-		consumed = tokens[:n] if n > 1 else tokens[:n][0]
-		Parameter.post_consume(self, consumed)
-		return tokens[n:], consumed
+		tokens.pop(0)  # Pop the opt from the tokens array
+		return Parameter.consume(self, tokens)
+
+	def matches(self, token):
+		return Parameter.matches(self, token) and token.startswith('-') and token in self._decls
 
 
 class Flag(Option):
-	'''A special kind of option that is True only if it appears.
-
-	Flags consume zero tokens.
+	'''A special option that consumes nothing and is True only if it appears.
 	'''
 
 	def __init__(self, param_decls, **attrs):
+		attrs['nargs'] = 0
 		attrs['default'] = False
 		Option.__init__(self, param_decls, **attrs)
 
 	def consume(self, tokens):
+		tokens.pop(0)  # Pop the flag from the tokens array
 		consumed = True
 		Parameter.post_consume(self, consumed)
 		return tokens, consumed
@@ -372,38 +380,31 @@ class Command(object):
 
 		# Pass 1: Forward - fill out based on input string
 		while tokens:
-			token = tokens.pop(0)
+			token = tokens[0]
 			# 1. Is it a subcommand? Pass off to subcommand.
 			if token in self._subcommands:
+				tokens.pop(0)
 				parsed[token] = self._subcommands[token].parse(tokens)
 				break  # The subcommand handles the remaining tokens
-			# 2. Check if it's an option, and if so let it consume tokens.
-			elif token.startswith('-'):
-				for param in self._params:
-					if token in param._decls:
-						tokens, consumed = param.consume(tokens)
-						if not param._hidden:
-							parsed[param._name] = consumed
-						break
-			# 3. Try to satisfy positional parameters (arguments).
+			# 2. Try to find a parameter that will consume it.
 			else:
 				for param in self._params:
-					if isinstance(param, Argument) and not param._satisfied:
-						tokens, consumed = param.consume([token] + tokens)
-						if not param._hidden:
-							parsed[param._name] = consumed
+					if param.matches(token):
+						tokens, consumed = param.consume(tokens)
+						if not param.hidden():
+							parsed[param.name()] = consumed
 						break
-			# 4. Error out.
+			# 3. Error out.
 				else:
 					# @TODO better error message
-					raise AttributeError('Weird token encountered: {}'.format(token))
+					exit('Error: could not understand "{}".'.format(token), True)
 
 		# Pass 2: Backward - fill out un-called parameters
 		for param in self._params:
-			if not param._satisfied and not param._hidden:
-				if param._required:
-					exit('Missing parameter "{}".'.format(param._name), True)
-				parsed[param._name] = param._default
+			if not param.satisfied() and not param.hidden():
+				if param.required():
+					exit('Missing parameter "{}".'.format(param.name()), True)
+				parsed[param.name()] = param.get_default()
 
 		return parsed
 
@@ -462,6 +463,7 @@ class Command(object):
 			help_parts.append(self._epilogue)
 
 		echo('\n\n'.join(help_parts))
+		exit()
 
 
 ########################################
