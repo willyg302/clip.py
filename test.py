@@ -1,6 +1,17 @@
 import unittest
+import contextlib
 
 import clip
+
+
+@contextlib.contextmanager
+def mock_clip_input(s):
+	cache = clip.input
+	def step(_):
+		return s.pop(0)
+	clip.input = step
+	yield
+	clip.input = cache
 
 
 class Stream(object):
@@ -75,10 +86,32 @@ class TestGlobals(BaseTest):
 		self.assertEqual(err._writes, ['What have I done?\n'])
 
 	def test_exit(self):
+		# Standard case, custom message
 		try:
-			clip.exit(1)
+			clip.exit('Woot!')
 		except clip.ClipExit as e:
+			self.assertEqual(e._message, 'Woot!')
+		# Error condition
+		try:
+			clip.exit(err=True)
+		except clip.ClipExit as e:
+			self.assertTrue(e._message.startswith('clip exiting'))
 			self.assertEqual(e._status, 1)
+
+	def test_confirm(self):
+		# All the standard accepted entries
+		with mock_clip_input(['y', 'n', 'Y', 'N', 'yEs', 'No', 'YES', 'no']):
+			for e in [True, False, True, False, True, False, True, False]:
+				self.assertEqual(clip.confirm('?'), e)
+		# Abort
+		with mock_clip_input(['n']):
+			with self.assertRaises(clip.ClipExit):
+				clip.confirm('?', abort=True)
+		# Mistaken entries
+		_, out, _ = self.embed()
+		with mock_clip_input(['', 'boop', 'PAHHHHHH', 'NO']):
+			self.assertFalse(clip.confirm('?'))
+		self.assertEqual(len(out._writes), 3)
 
 
 class TestParse(BaseTest):
@@ -102,6 +135,19 @@ class TestParse(BaseTest):
 		for actual in actuals:
 			self.assertEqual(self.make_kitchen_sink_app().parse(actual.split()), expected)
 
+	def test_required(self):
+		app, _, err = self.embed()
+
+		@app.main()
+		@clip.opt('-o')
+		@clip.flag('-r', required=True)
+		def f(o, r):
+			pass
+
+		with self.assertRaises(clip.ClipExit):
+			app.run('-o joe'.split())
+		self.assertTrue('Missing' in err._writes[0])
+
 
 class TestInvoke(BaseTest):
 
@@ -114,6 +160,7 @@ class TestInvoke(BaseTest):
 		app = self.make_kitchen_sink_app()
 		app.run('b a n a n a'.split())
 		self.assertEqual(self.b[2], 'a n a n a'.split())
+		# If reset works, we should be able to run another command right away
 		app.run('b o o p'.split())
 		self.assertEqual(self.b[2], 'o o p'.split())
 
@@ -129,11 +176,8 @@ class TestInvoke(BaseTest):
 		def f():
 			clip.echo('Should not be called')
 
-		try:
+		with self.assertRaises(clip.ClipExit):
 			app.run('--version'.split())
-		except clip.ClipExit:
-			pass
-
 		self.assertEqual(out._writes, ['Version 0.0.0\n'])
 
 
@@ -154,13 +198,51 @@ class TestEmbedding(BaseTest):
 		self.assertEqual(err._writes, ['err1\n'])
 
 	def test_exit_message(self):
-		# Exiting should print a message to err
-		_, _, err = self.make_embedded_app()
-		try:
-			clip.exit(message='Exiting!')
-		except clip.ClipExit:
-			pass
-		self.assertEqual(err._writes, ['Exiting!\n'])
+		# Exiting should print a message
+		_, out, _ = self.make_embedded_app()
+		with self.assertRaises(clip.ClipExit):
+			clip.exit('Exiting!')
+		self.assertEqual(out._writes, ['Exiting!\n'])
+
+
+class TestMistakes(BaseTest):
+
+	def test_app_mistakes(self):
+		# App should not define more than one main command
+		app = self.make_kitchen_sink_app()
+		with self.assertRaises(AttributeError):
+
+			@app.main()
+			def f():
+				pass
+
+		# App should define at least one main command
+		with self.assertRaises(AttributeError):
+			clip.App().run('something'.split())
+
+	def test_command_mistakes(self):
+		# Giving a command a callback that is already a command
+		with self.assertRaises(TypeError):
+			app = clip.App()
+
+			@app.main()
+			def f():
+				pass
+
+			@f.subcommand()
+			@f.subcommand()
+			def sub():
+				pass
+
+	def test_argument_mistakes(self):
+		# Specifying more than one name for a command
+		with self.assertRaises(TypeError):
+			app = clip.App()
+
+			@app.main()
+			@clip.arg('name', 'whoops')
+			def f(name):
+				pass
 
 
 if __name__ == '__main__':

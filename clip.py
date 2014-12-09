@@ -1,8 +1,8 @@
 '''
 clip.py: Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
 
-:copyright: (c) 2014 William Gaul
-:license: MIT, see LICENSE for more details
+Copyright: (c) 2014 William Gaul
+License: MIT, see LICENSE for more details
 '''
 import sys
 import itertools
@@ -14,7 +14,7 @@ import itertools
 
 PY2 = sys.version_info[0] == 2
 
-raw_input = raw_input if PY2 else input
+input = raw_input if PY2 else input
 
 
 ''' @TODO:
@@ -26,11 +26,6 @@ raw_input = raw_input if PY2 else input
   - confirm: Ask for confirmation (False)
   - type: The type to coerce input to (None)
   - show_default: Whether to display the default value to users (True)
-- A confirm function:
-  - text: To show for prompt
-  - default: Default value for prompt (False)
-  - abort: If True, answering no will raise an abort (False)
-  - show_default: (True)
 
 
 GLOBAL OPTIONS INHERITANCE SYSTEM
@@ -64,11 +59,16 @@ def a(s):
 And now `a -s b` is invalid.
 
 A subcommand can inherit an option from any level above it.
+
+
+
+PRINT USAGE TO THE USER WHEN THEY ENTER SOMETHING WEIRD.
+This means that usage should be a separate method?
 '''
 
 
 ########################################
-# GLOBAL METHODS
+# GLOBAL CLASSES/METHODS
 ########################################
 
 class ClipGlobals(object):
@@ -90,23 +90,51 @@ class ClipGlobals(object):
 		self._stderr = stream
 
 
+class ClipExit(Exception):
+	def __init__(self, message=None, status=0):
+		self._message = message or 'clip exiting with status {}'.format(status)
+		self._status = status
+	def __str__(self):
+		return repr(self._message)
+
+
 clip_globals = ClipGlobals()
 
 def echo(message, err=False):
 	clip_globals.echo(message, err)
 
-
-class ClipExit(Exception):
-	def __init__(self, status):
-		self._status = status
-	def __str__(self):
-		return repr(self._status)
-
-
-def exit(status=0, message=None):
+def exit(message=None, err=False):
 	if message:
-		echo(message, err=True)
-	raise ClipExit(status)
+		echo(message, err)
+	raise ClipExit(message, 1 if err else 0)
+
+def confirm(prompt, default=None, show_default=True, abort=False):
+	'''Prompts for confirmation from the user.
+
+	Arguments:
+	  - prompt: The prompt to show to the user.
+	  - default: Default value for the prompt, one of 'yes'/'no'/None.
+	  - show_default: Whether to display the prompt defaults, e.g. [y/n]
+	  - abort: If True and the user enters 'no' this will raise a ClipExit.
+	'''
+	valid = {
+		'yes': True,
+		'y': True,
+		'no': False,
+		'n': False
+	}
+	if default not in ['yes', 'no', None]:
+		default = None
+	if show_default:
+		prompt = '{} [{}/{}]: '.format(prompt, 'Y' if default == 'yes' else 'y', 'N' if default == 'no' else 'n')
+	while True:
+		choice = input(prompt).lower() or default
+		if choice in valid:
+			if valid[choice] == False and abort:
+				exit('Operation aborted by user', True)
+			return valid[choice]
+		else:
+			echo('Please respond with "yes" or "no" (or "y" or "n").')
 
 
 ########################################
@@ -163,7 +191,7 @@ class Parameter(object):
 	'''
 
 
-	''' @TODO: Implement type and required
+	''' @TODO: Implement type
 
 	Improvements:
 
@@ -371,7 +399,11 @@ class Command(object):
 					raise AttributeError('Weird token encountered: {}'.format(token))
 
 		# Pass 2: Backward - fill out un-called parameters
-		parsed.update({param._name: param._default for param in self._params if not param._satisfied and not param._hidden})
+		for param in self._params:
+			if not param._satisfied and not param._hidden:
+				if param._required:
+					exit('Missing parameter "{}".'.format(param._name), True)
+				parsed[param._name] = param._default
 
 		return parsed
 
@@ -444,6 +476,10 @@ class App(object):
 
 		self._main = None
 
+	def _ping_main(self):
+		if self._main is None:
+			raise AttributeError('A main function must be assigned to this app')
+
 	def main(self, name=None, **attrs):
 		def decorator(f):
 			if self._main is not None:
@@ -469,6 +505,8 @@ class App(object):
 		parameters are encoded as lists. All other values are encoded as
 		parameter-specified data types, or strings if not specified.
 		'''
+		self._ping_main()
+
 		# Pre-parsing:
 		#   1. Expand globbed options: -abc --> -a -b -c
 		def is_globbed(s):
@@ -481,6 +519,7 @@ class App(object):
 	def invoke(self, parsed):
 		'''Invokes the app, given a parsed token object.
 		'''
+		self._ping_main()
 		self._main.invoke(parsed)
 
 	def reset(self):
@@ -490,6 +529,7 @@ class App(object):
 		in the commands and parameters, meaning that the app cannot be run
 		again. After a reset, the app is freely available for reuse.
 		'''
+		self._ping_main()
 		self._main.reset()
 
 	def run(self, tokens=None):
