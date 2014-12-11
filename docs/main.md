@@ -11,6 +11,7 @@
   - [Utilities](utilities.md)
 - Advanced
   - [Embedding](embedding.md)
+  - [How clip Works](how-clip-works.md)
 
 ## FAQ
 

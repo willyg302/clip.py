@@ -28,43 +28,8 @@ text_type = basestring if PY2 else str
   - type: The type to coerce input to (None)
   - show_default: Whether to display the default value to users (True)
 
-
-GLOBAL OPTIONS INHERITANCE SYSTEM
-
-@app.main()
-@clip.flag('-s')
-def a(s):
-	pass
-
-@a.subcommand()
-def b():
-	pass
-
-Valid: a -s b
-Invalid: a b -s
-
-But then:
-
-@a.subcommand()
-@a.inherit(['-s'])
-def b(s):
-	pass
-
-And now `a b -s` is valid. Furthermore:
-
-@app.main()
-@clip.flag('-s', global=False)
-def a(s):
-	pass
-
-And now `a -s b` is invalid.
-
-A subcommand can inherit an option from any level above it.
-
-
-
-PRINT USAGE TO THE USER WHEN THEY ENTER SOMETHING WEIRD.
-This means that usage should be a separate method?
+- PRINT USAGE TO THE USER WHEN THEY ENTER SOMETHING WEIRD.
+  This means that usage should be a separate method?
 '''
 
 
@@ -350,6 +315,14 @@ class ParameterDict(object):
 		for param in params:
 			self.add(param)
 
+	def __contains__(self, key):
+		return key in self._args_map or key in self._opts_map
+
+	def __getitem__(self, key):
+		if key in self._args_map:
+			return self._args[self._args_map[key]]
+		return self._opts[self._opts_map[key]]
+
 	def add(self, param):
 		l, m = (self._args, self._args_map) if isinstance(param, Argument) else (self._opts, self._opts_map)
 		i = len(l)
@@ -412,15 +385,20 @@ def command(name=None, **attrs):
 class Command(object):
 
 	def __init__(self, name, callback, params, parent=None, description=None, epilogue=None, inherits=None):
-		# Add help to every command
-		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
-
 		self._name = name
 		self._callback = callback
-		self._params = ParameterDict(params)
 		self._parent = parent
 		self._description = description
 		self._epilogue = epilogue
+
+		# Add help to every command and shim in inherited parameters
+		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
+		if inherits is not None:
+			if self._parent is None:
+				raise AttributeError('A main function cannot inherit parameters')
+			for e in inherits:
+				params.append(self._parent._get_inherited_param(e))
+		self._params = ParameterDict(params)
 
 		self._subcommands = {}
 
@@ -438,6 +416,13 @@ class Command(object):
 	def _get_path(self):
 		path = self._parent._get_path() if self._parent is not None else []
 		return path + [self._name]
+
+	def _get_inherited_param(self, name):
+		if name in self._params:
+			return self._params[name]
+		if self._parent is not None:
+			return self._parent._get_inherited_param(name)
+		raise AttributeError('Unable to inherit parameter "{}"'.format(name))
 
 	def subcommand(self, name=None, **attrs):
 		def decorator(f):

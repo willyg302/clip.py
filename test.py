@@ -176,6 +176,7 @@ class TestParse(BaseTest):
 	# @TODO:
 	#   - Test type (should be part of kitchen sink)
 	#   - Test required/nargs (should be part of kitchen sink)
+	#   - Test default. This includes a case where default is a function!
 
 
 class TestInvoke(BaseTest):
@@ -235,6 +236,16 @@ Usage: test.py [OPTIONS] COMMAND [ARGS]...
 
 Error: No such command "asdajnd".
 '''
+
+
+class TestInheritance(BaseTest):
+
+	def test_inheritance(self):
+		pass
+		# @TODO:
+		#   - All inheritance cases
+		#   - Inheritance of a param two levels up (nested subcommand)
+		#   - Inheritance can be specified using decls, name, etc.
 
 
 
@@ -313,6 +324,9 @@ class TestMistakes(BaseTest):
 			@clip.arg('name', 'whoops')
 			def f(name):
 				pass
+
+	# @TODO: Test mistake where inherit is given a param that doesn't exist
+	# - Also when main function is given inherits
 
 
 class TestExamples(BaseTest):
