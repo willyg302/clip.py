@@ -2,6 +2,16 @@
 
 ## Contents
 
+- Beginner
+  - [Getting Started](getting-started.md)
+  - [Commands](commands.md)
+  - [Parameters](parameters.md)
+- Intermediate
+  - [Inheriting Parameters](inheriting-parameters.md)
+  - [Utilities](utilities.md)
+- Advanced
+  - [Embedding](embedding.md)
+
 ## FAQ
 
 ### Why use clip instead of [other CLI tool]?

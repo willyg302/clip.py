@@ -173,8 +173,7 @@ class TestInvoke(BaseTest):
 		app, out, _ = self.embed()
 
 		def print_version(value):
-			clip.echo('Version 0.0.0')
-			clip.exit()
+			clip.exit('Version 0.0.0')
 
 		@app.main()
 		@clip.flag('--version', callback=print_version, hidden=True)
@@ -226,8 +225,12 @@ class TestEmbedding(BaseTest):
 			clip.exit('Exiting!')
 		self.assertEqual(out._writes, ['Exiting!\n'])
 
+	# @TODO: Test embedding of confirm input
+
 
 class TestMistakes(BaseTest):
+	'''These are mistakes a programmer would make using clip.
+	'''
 
 	def test_app_mistakes(self):
 		# App should not define more than one main command

@@ -108,7 +108,7 @@ def exit(message=None, err=False):
 		echo(message, err)
 	raise ClipExit(message, 1 if err else 0)
 
-def confirm(prompt, default=None, show_default=True, abort=False):
+def confirm(prompt, default=None, show_default=True, abort=False, input_function=None):
 	'''Prompts for confirmation from the user.
 
 	Arguments:
@@ -123,12 +123,14 @@ def confirm(prompt, default=None, show_default=True, abort=False):
 		'no': False,
 		'n': False
 	}
+	if input_function is None:
+		input_function = input
 	if default not in ['yes', 'no', None]:
 		default = None
 	if show_default:
 		prompt = '{} [{}/{}]: '.format(prompt, 'Y' if default == 'yes' else 'y', 'N' if default == 'no' else 'n')
 	while True:
-		choice = input(prompt).lower() or default
+		choice = input_function(prompt).lower() or default
 		if choice in valid:
 			if valid[choice] == False and abort:
 				exit('Operation aborted by user', True)

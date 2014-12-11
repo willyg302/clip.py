@@ -87,3 +87,9 @@ Call `python test.py` while in the root directory of this repo.
 - [ ] Finish redesign
 - [ ] Associated redesign tests
 - [ ] Basic documentation
+
+## Credits
+
+- **[Aaargh](https://github.com/wbolster/aaargh)**: Some parsing logic
+- **[Click](http://click.pocoo.org/3/)**: Decorator systems, parameter features
+- **[docopt](http://docopt.org/)**: Help text formatting
