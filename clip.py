@@ -15,6 +15,7 @@ import itertools
 PY2 = sys.version_info[0] == 2
 
 input = raw_input if PY2 else input
+text_type = basestring if PY2 else str
 
 
 ''' @TODO:
@@ -143,12 +144,9 @@ def confirm(prompt, default=None, show_default=True, abort=False, input_function
 # PARAMETER METHODS
 ########################################
 
-def _convert_type(t, default=None):
-	return t or (type(default) if default is not None else None)
-
 def _memoize_param(f, param):
 	if isinstance(f, Command):
-		f._params.append(param)
+		f._params.add(param)
 	else:
 		if not hasattr(f, '__clip_params__'):
 			f.__clip_params__ = []
@@ -201,10 +199,10 @@ class Parameter(object):
 		         type=None, required=False, callback=None, hidden=False,
 		         help=None):
 		self._decls = param_decls
-		self._name = name or self.parse_name(param_decls)
+		self._name = name or self._make_name(param_decls)
 		self._nargs = nargs
-		self._default = default
-		self._type = _convert_type(type, default)
+		self._default = self._make_default(default, nargs)
+		self._type = self._make_type(type, self._default)
 		self._required = required
 		self._callback = callback
 		self._hidden = hidden
@@ -213,53 +211,69 @@ class Parameter(object):
 		self.reset()  # Do an initial reset to prime the parameter
 
 	def reset(self):
+		self._value = None  # The parsed value of this parameter
 		self._satisfied = False  # True when this parameter has consumed tokens
+
+	def _make_name(self, decls):
+		raise NotImplementedError('_make_name/1 must be implemented by child classes')
+
+	def _make_default(self, default, nargs):
+		if nargs != 0 and nargs != 1:
+			default = default or []
+			if not isinstance(default, list):
+				raise TypeError('Default value must be list with nargs={}'.format(nargs))
+		return default
+
+	def _make_type(self, t, default):
+		if t is None:
+			if isinstance(default, list):
+				return type(default[0]) if len(default) > 0 else None
+			return type(default) if default else None
+		return t
 
 	def name(self):
 		return self._name
 
-	def required(self):
-		return self._required
-
 	def hidden(self):
 		return self._hidden
+
+	def value(self):
+		return self._value
 
 	def satisfied(self):
 		return self._satisfied
 
-	def parse_name(self, decls):
-		raise NotImplementedError('parse_name/1 must be implemented by child classes')
-
 	def consume(self, tokens):
 		'''Have this parameter consume some tokens.
 
-		Returns the modified tokens array and the value associated with this
-		parameter to store. For example, given:
-
-		    ['-a', 'one', 'two']
-
-		where -a is an option that consumes one token, this will return:
-
-		    ['two'], 'one'
-
-		That is, 'one' was consumed and is this parameter's value.
+		This stores the consumed value for later use and returns the
+		modified tokens array for further processing.
 		'''
 		n = len(tokens) if self._nargs == -1 else self._nargs
-		# @TODO: Wrap ValueError when an invalid parameter type is given
-		l = [self._type(e) if self._type is not None else e for e in tokens[:n]]
-		consumed = l if n != 1 else l[0]
+		if n > len(tokens):
+			exit('Error: Not enough arguments for "{}".'.format(self.name()), True)
+		try:
+			consumed = [self._type(e) if self._type is not None else e for e in tokens[:n]]
+		except ValueError as e:
+			exit(str(e), True)
+		if n == 1:
+			consumed = consumed[0]
 		self.post_consume(consumed)
-		return tokens[n:], consumed
+		return tokens[n:]
 
 	def post_consume(self, consumed):
+		self._value = consumed
 		self._satisfied = True
 		# Parameter has been matched, so invoke the callback if any
 		if self._callback is not None:
 			self._callback(consumed)
 
-	def get_default(self):
+	def set_default(self):
+		# If we're calling this method, then this parameter wasn't provided
+		if self._required:
+			exit('Error: Missing parameter "{}".'.format(self._name), True)
 		# The provided default can be a function, whose return value will be used
-		return self._default() if hasattr(self._default, '__call__') else self._default
+		self._value = self._default() if hasattr(self._default, '__call__') else self._default
 
 	def matches(self, token):
 		return not self.satisfied()
@@ -272,16 +286,13 @@ class Argument(Parameter):
 	def __init__(self, param_decls, **attrs):
 		Parameter.__init__(self, param_decls, **attrs)
 
-	def parse_name(self, decls):
+	def _make_name(self, decls):
 		if not len(decls) == 1:
 			raise TypeError('Arguments take exactly 1 parameter declaration, got {}'.format(len(decls)))
 		return decls[0]
 
 	def consume(self, tokens):
 		return Parameter.consume(self, tokens)
-
-	def matches(self, token):
-		return Parameter.matches(self, token) and not token.startswith('-')
 
 
 class Option(Parameter):
@@ -302,7 +313,7 @@ class Option(Parameter):
 	def __init__(self, param_decls, **attrs):
 		Parameter.__init__(self, param_decls, **attrs)
 
-	def parse_name(self, decls):
+	def _make_name(self, decls):
 		# @TODO: Validate parameter declaration logic?
 		longest = sorted(list(decls), key=lambda x: len(x))[-1]
 		return longest[2:].replace('-', '_').lower() if len(longest) > 2 else longest[1:]
@@ -310,9 +321,6 @@ class Option(Parameter):
 	def consume(self, tokens):
 		tokens.pop(0)  # Pop the opt from the tokens array
 		return Parameter.consume(self, tokens)
-
-	def matches(self, token):
-		return Parameter.matches(self, token) and token.startswith('-') and token in self._decls
 
 
 class Flag(Option):
@@ -326,9 +334,52 @@ class Flag(Option):
 
 	def consume(self, tokens):
 		tokens.pop(0)  # Pop the flag from the tokens array
-		consumed = True
-		Parameter.post_consume(self, consumed)
-		return tokens, consumed
+		Parameter.post_consume(self, True)
+		return tokens
+
+
+class ParameterDict(object):
+
+	def __init__(self, params):
+		self._args = []
+		self._opts = []
+		self._args_map = {}
+		self._opts_map = {}
+		for param in params:
+			self.add(param)
+
+	def add(self, param):
+		l, m = (self._args, self._args_map) if isinstance(param, Argument) else (self._opts, self._opts_map)
+		i = len(l)
+		l.append(param)
+		for decl in param._decls:
+			m[decl] = i
+		m[param.name()] = i
+
+	def match(self, token):
+		match = None
+		if token in self._opts_map:
+			possible = self._opts[self._opts_map[token]]
+			if possible.matches(token):
+				match = possible
+		if match is None:
+			for arg in self._args:
+				if arg.matches(token):
+					match = arg
+					break
+		return match
+
+	def unsatisfied(self):
+		return [p for p in self.all() if not p.satisfied()]
+
+	def all(self):
+		return self._args + self._opts
+
+	def arguments(self):
+		return self._args
+
+	def options(self):
+		return self._opts
 
 
 ########################################
@@ -359,15 +410,16 @@ def command(name=None, **attrs):
 class Command(object):
 
 	def __init__(self, name, callback, params, description=None, epilogue=None):
+		# Add help to every command
+		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
+
 		self._name = name
 		self._callback = callback
-		self._params = params
+		self._params = ParameterDict(params)
 		self._description = description
 		self._epilogue = epilogue
 
 		self._subcommands = {}
-		# Add help to every command
-		self._params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
 
 	def subcommand(self, name=None, **attrs):
 		def decorator(f):
@@ -377,36 +429,28 @@ class Command(object):
 		return decorator
 
 	def parse(self, tokens):
-		# @TODO: Clean up
 		parsed = {}
 
-		# Pass 1: Forward - fill out based on input string
+		# Pass 1: Forward - fill out parameter values based on input string
 		while tokens:
 			token = tokens[0]
-			# 1. Is it a subcommand? Pass off to subcommand.
 			if token in self._subcommands:
 				tokens.pop(0)
 				parsed[token] = self._subcommands[token].parse(tokens)
 				break  # The subcommand handles the remaining tokens
-			# 2. Try to find a parameter that will consume it.
-			else:
-				for param in self._params:
-					if param.matches(token):
-						tokens, consumed = param.consume(tokens)
-						if not param.hidden():
-							parsed[param.name()] = consumed
-						break
-			# 3. Error out.
-				else:
-					# @TODO better error message
-					exit('Error: could not understand "{}".'.format(token), True)
+			match = self._params.match(token)
+			if not match:
+				exit('Error: Could not understand "{}".'.format(token), True)
+			tokens = match.consume(tokens)
 
-		# Pass 2: Backward - fill out un-called parameters
-		for param in self._params:
-			if not param.satisfied() and not param.hidden():
-				if param.required():
-					exit('Missing parameter "{}".'.format(param.name()), True)
-				parsed[param.name()] = param.get_default()
+		# Pass 2: Backward - fill out missing parameters
+		for param in self._params.unsatisfied():
+			param.set_default()
+
+		# Pass 3: Build the JSON-serializable object to return
+		for param in self._params.all():
+			if not param.hidden():
+				parsed[param.name()] = param.value()
 
 		return parsed
 
@@ -420,7 +464,7 @@ class Command(object):
 
 	def reset(self):
 		# Reset all parameters associated with this command
-		for param in self._params:
+		for param in self._params.all():
 			param.reset()
 		# Recurse into subcommands
 		for v in self._subcommands.values():
@@ -441,14 +485,14 @@ class Command(object):
 		help_parts.append('Usage: {} {{arguments/options}} {{subcommand}}'.format(self._name))
 
 		# Arguments
-		args = [param for param in self._params if isinstance(param, Argument)]
+		args = self._params.arguments()
 		if args:
 			args_width = max(len(arg._name) for arg in args) + 2
 			arguments = ['  {}{}'.format(arg._name.ljust(args_width), arg._help or '') for arg in args]
 			help_parts.append('\n'.join(['Arguments:'] + arguments))
 
 		# Options
-		opts = [param for param in self._params if isinstance(param, Option)]
+		opts = self._params.options()
 		if opts:
 			opts_width = max(len(', '.join(opt._decls)) for opt in opts) + 2
 			options = ['  {}{}'.format(', '.join(opt._decls).ljust(opts_width), opt._help or '') for opt in opts]
@@ -539,5 +583,8 @@ class App(object):
 	def run(self, tokens=None):
 		if tokens is None:
 			tokens = sys.argv[1:]
+		if isinstance(tokens, text_type):
+			tokens = tokens.split()
 		self.invoke(self.parse(tokens))
 		self.reset()  # Clean up so the app can be used again
+		return self

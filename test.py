@@ -145,28 +145,31 @@ class TestParse(BaseTest):
 			pass
 
 		with self.assertRaises(clip.ClipExit):
-			app.run('-o joe'.split())
+			app.run('-o joe')
 		self.assertTrue('Missing' in err._writes[0])
 
 
 	# @TODO:
 	#   - Test type
 	#   - Test required/nargs
+	#   - Test a case where nargs is greater than the number of remaining tokens
+	#   - Test a case where invalid value type is given to a parameter
+	#   - Test that run accepts a list or strings or sys.argv
 
 
 class TestInvoke(BaseTest):
 
 	def test_invoke(self):
-		self.make_kitchen_sink_app().run('-ab --file pie.txt chocolate b --long-thing yum yo'.split())
+		self.make_kitchen_sink_app().run('-ab --file pie.txt chocolate b --long-thing yum yo')
 		self.assertEqual(self.a, [True, True, 'pie.txt', 'chocolate'])
 		self.assertEqual(self.b, [False, True, ['yum', 'yo']])
 
 	def test_reset(self):
 		app = self.make_kitchen_sink_app()
-		app.run('b a n a n a'.split())
+		app.run('b a n a n a')
 		self.assertEqual(self.b[2], 'a n a n a'.split())
 		# If reset works, we should be able to run another command right away
-		app.run('b o o p'.split())
+		app.run('b o o p')
 		self.assertEqual(self.b[2], 'o o p'.split())
 
 	def test_version(self):
@@ -181,7 +184,7 @@ class TestInvoke(BaseTest):
 			clip.echo('Should not be called')
 
 		with self.assertRaises(clip.ClipExit):
-			app.run('--version'.split())
+			app.run('--version')
 		self.assertEqual(out._writes, ['Version 0.0.0\n'])
 
 
@@ -190,7 +193,7 @@ class TestHelp(BaseTest):
 	def test_help(self):
 		pass
 		# @TODO
-		#self.make_kitchen_sink_app().run('b -h'.split())
+		#self.make_kitchen_sink_app().run('b -h')
 
 
 
@@ -214,7 +217,7 @@ class TestEmbedding(BaseTest):
 
 	def test_streams(self):
 		app, out, err = self.make_embedded_app()
-		app.run('--to-out out1 --to-err err1'.split())
+		app.run('--to-out out1 --to-err err1')
 		self.assertEqual(out._writes, ['out1\n'])
 		self.assertEqual(err._writes, ['err1\n'])
 
@@ -243,7 +246,7 @@ class TestMistakes(BaseTest):
 
 		# App should define at least one main command
 		with self.assertRaises(AttributeError):
-			clip.App().run('something'.split())
+			clip.App().run('something')
 
 	def test_command_mistakes(self):
 		# Giving a command a callback that is already a command
@@ -268,6 +271,58 @@ class TestMistakes(BaseTest):
 			@clip.arg('name', 'whoops')
 			def f(name):
 				pass
+
+	# @TODO: If nargs != 1 and default is not a list
+
+
+class TestExamples(BaseTest):
+	'''Test documentation examples to protect against regressions.
+
+	If any of these tests fail, then the associated docs need to be updated.
+	'''
+
+	def test_getting_started(self):
+		# Chef example in README and Getting Started section
+		app, out, err = self.embed()
+
+		@app.main(description='Hey, I em zee Svedeesh cheff!')
+		def chef():
+			pass
+
+		@chef.subcommand(description='Hefe-a zee cheff cuuk sume-a fuud')
+		@clip.arg('food', required=True, help='Neme-a ooff zee fuud')
+		@clip.opt('-c', '--count', default=1, help='Hoo mooch fuud yuoo vunt')
+		def cook(food, count):
+			clip.echo('Zee cheff veell cuuk {}'.format(' '.join([food] * count)))
+
+		@chef.subcommand(description='Tell zee cheff tu beke-a a pestry')
+		@clip.arg('pastry', required=True, help='Neme-a ooff zee pestry')
+		@clip.flag('--now', help='Iff yuoo\'re-a in a hoorry')
+		def bake(pastry, now):
+			response = 'Ookey ookey, I veell beke-a zee {} reeght evey!' if now else 'Ooh, yuoo vunt a {}?'
+			clip.echo(response.format(pastry))
+
+		inputs = [
+			'cook bork --count 5',
+			'bake pie --now'
+		]
+		for e in inputs:
+			app.run(e)
+		self.assertEqual(out._writes, [
+			'Zee cheff veell cuuk bork bork bork bork bork\n',
+			'Ookey ookey, I veell beke-a zee pie reeght evey!\n'
+		])
+
+		# Echo example
+		app, out, err = self.embed()
+
+		@app.main()
+		@clip.arg('words', nargs=-1)
+		def echo(words):
+			clip.echo(' '.join(words))
+
+		app.run('Hello world!').run('')
+		self.assertEqual(out._writes, ['Hello world!\n', '\n'])
 
 
 if __name__ == '__main__':
