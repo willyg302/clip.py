@@ -111,12 +111,6 @@ def exit(message=None, err=False):
 
 def confirm(prompt, default=None, show_default=True, abort=False, input_function=None):
 	'''Prompts for confirmation from the user.
-
-	Arguments:
-	  - prompt: The prompt to show to the user.
-	  - default: Default value for the prompt, one of 'yes'/'no'/None.
-	  - show_default: Whether to display the prompt defaults, e.g. [y/n]
-	  - abort: If True and the user enters 'no' this will raise a ClipExit.
 	'''
 	valid = {
 		'yes': True,
@@ -231,6 +225,18 @@ class Parameter(object):
 			return type(default) if default else None
 		return t
 
+	def _get_help_name(self):
+		return self._name
+
+	def _get_help(self):
+		name = [self._get_help_name()]
+		if self._nargs != 0:
+			name.append('[{}{}]'.format(self._type.__name__ if self._type else 'text', '' if self._nargs == 1 else '...'))
+		desc = [self._help or '']
+		if self._default:
+			desc.append('(default: {})'.format(self._default))
+		return [' '.join(name), ' '.join(desc)]
+
 	def name(self):
 		return self._name
 
@@ -251,11 +257,11 @@ class Parameter(object):
 		'''
 		n = len(tokens) if self._nargs == -1 else self._nargs
 		if n > len(tokens):
-			exit('Error: Not enough arguments for "{}".'.format(self.name()), True)
+			exit('Error: Not enough arguments for "{}".'.format(self._name), True)
 		try:
 			consumed = [self._type(e) if self._type is not None else e for e in tokens[:n]]
 		except ValueError as e:
-			exit(str(e), True)
+			exit('Error: Invalid type given to "{}", expected {}'.format(self._name, self._type.__name__), True)
 		if n == 1:
 			consumed = consumed[0]
 		self.post_consume(consumed)
@@ -266,7 +272,7 @@ class Parameter(object):
 		self._satisfied = True
 		# Parameter has been matched, so invoke the callback if any
 		if self._callback is not None:
-			self._callback(consumed)
+			self._callback(self._value)
 
 	def set_default(self):
 		# If we're calling this method, then this parameter wasn't provided
@@ -276,23 +282,17 @@ class Parameter(object):
 		self._value = self._default() if hasattr(self._default, '__call__') else self._default
 
 	def matches(self, token):
-		return not self.satisfied()
+		return not self._satisfied
 
 
 class Argument(Parameter):
 	'''A positional parameter.
 	'''
 
-	def __init__(self, param_decls, **attrs):
-		Parameter.__init__(self, param_decls, **attrs)
-
 	def _make_name(self, decls):
 		if not len(decls) == 1:
 			raise TypeError('Arguments take exactly 1 parameter declaration, got {}'.format(len(decls)))
 		return decls[0]
-
-	def consume(self, tokens):
-		return Parameter.consume(self, tokens)
 
 
 class Option(Parameter):
@@ -314,9 +314,11 @@ class Option(Parameter):
 		Parameter.__init__(self, param_decls, **attrs)
 
 	def _make_name(self, decls):
-		# @TODO: Validate parameter declaration logic?
 		longest = sorted(list(decls), key=lambda x: len(x))[-1]
 		return longest[2:].replace('-', '_').lower() if len(longest) > 2 else longest[1:]
+
+	def _get_help_name(self):
+		return ', '.join(self._decls)
 
 	def consume(self, tokens):
 		tokens.pop(0)  # Pop the opt from the tokens array
@@ -421,6 +423,17 @@ class Command(object):
 
 		self._subcommands = {}
 
+	def reset(self):
+		# Reset all parameters associated with this command
+		for param in self._params.all():
+			param.reset()
+		# Recurse into subcommands
+		for v in self._subcommands.values():
+			v.reset()
+
+	def _get_help(self):
+		return [self._name, self._description or '']
+
 	def subcommand(self, name=None, **attrs):
 		def decorator(f):
 			cmd = command(name, **attrs)(f)
@@ -462,18 +475,9 @@ class Command(object):
 			if k in self._subcommands:
 				self._subcommands[k].invoke(v)
 
-	def reset(self):
-		# Reset all parameters associated with this command
-		for param in self._params.all():
-			param.reset()
-		# Recurse into subcommands
-		for v in self._subcommands.values():
-			v.reset()
-
 	def help(self, value):
-		# @TODO: Clean up
-		# Also, add all the other things like defaults, types, etc.
 		help_parts = []
+		usage = []
 
 		# Header
 		header = self._name
@@ -481,35 +485,33 @@ class Command(object):
 			header = '{}: {}'.format(header, self._description)
 		help_parts.append(header)
 
-		# Usage
-		help_parts.append('Usage: {} {{arguments/options}} {{subcommand}}'.format(self._name))
+		# Main help sections (title, followed by 2-column list)
+		def make_help_section(l, title):
+			data = [e._get_help() for e in l]
+			width = max(len(e[0]) for e in data) + 2
+			return '\n'.join([title] + ['  {}{}'.format(e[0].ljust(width), e[1]) for e in data])
 
-		# Arguments
 		args = self._params.arguments()
 		if args:
-			args_width = max(len(arg._name) for arg in args) + 2
-			arguments = ['  {}{}'.format(arg._name.ljust(args_width), arg._help or '') for arg in args]
-			help_parts.append('\n'.join(['Arguments:'] + arguments))
-
-		# Options
+			usage.append('{{arguments}}')
+			help_parts.append(make_help_section(args, 'Arguments:'))
 		opts = self._params.options()
 		if opts:
-			opts_width = max(len(', '.join(opt._decls)) for opt in opts) + 2
-			options = ['  {}{}'.format(', '.join(opt._decls).ljust(opts_width), opt._help or '') for opt in opts]
-			help_parts.append('\n'.join(['Options:'] + options))
+			usage.append('{{options}}')
+			help_parts.append(make_help_section(opts, 'Options:'))
+		subs = self._subcommands.values()
+		if subs:
+			usage.append('{{subcommand}}')
+			help_parts.append(make_help_section(subs, 'Subcommands:'))
 
-		# Subcommands
-		if self._subcommands:
-			subs_width = max(len(k) for k, v in self._subcommands.iteritems()) + 2
-			subcommands = ['  {}{}'.format(k.ljust(subs_width), v._description or '') for k, v in self._subcommands.iteritems()]
-			help_parts.append('\n'.join(['Subcommands:'] + subcommands))
+		# Now we know the usage string, so insert it
+		help_parts.insert(1, 'Usage: {} {}'.format(self._name, ' '.join(usage)))
 
 		# Epilogue
 		if self._epilogue is not None:
 			help_parts.append(self._epilogue)
 
-		echo('\n\n'.join(help_parts))
-		exit()
+		exit('\n\n'.join(help_parts))
 
 
 ########################################

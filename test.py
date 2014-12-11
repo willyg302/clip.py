@@ -148,13 +148,34 @@ class TestParse(BaseTest):
 			app.run('-o joe')
 		self.assertTrue('Missing' in err._writes[0])
 
+	def test_common_errors(self):
+		app, _, err = self.embed()
+
+		@app.main()
+		def f():
+			pass
+
+		@f.subcommand()
+		@clip.opt('--tokens', nargs=4)
+		def nargs(tokens):
+			pass
+
+		@f.subcommand()
+		@clip.opt('--int', type=int)
+		@clip.arg('ints', type=int, nargs=3)
+		def coerce(int, ints):
+			pass
+
+		for e in ['nargs --tokens 1 2 3', 'coerce --int pie', 'coerce this aint right']:
+			with self.assertRaises(clip.ClipExit):
+				app.run(e)
+		for i, e in enumerate(['Not enough', 'Invalid type', 'Invalid type']):
+			self.assertTrue(e in err._writes[i])
+
 
 	# @TODO:
-	#   - Test type
-	#   - Test required/nargs
-	#   - Test a case where nargs is greater than the number of remaining tokens
-	#   - Test a case where invalid value type is given to a parameter
-	#   - Test that run accepts a list or strings or sys.argv
+	#   - Test type (should be part of kitchen sink)
+	#   - Test required/nargs (should be part of kitchen sink)
 
 
 class TestInvoke(BaseTest):
@@ -171,6 +192,11 @@ class TestInvoke(BaseTest):
 		# If reset works, we should be able to run another command right away
 		app.run('b o o p')
 		self.assertEqual(self.b[2], 'o o p'.split())
+
+	def test_run(self):
+		app, out, _ = self.make_embedded_app()
+		app.run(['--to-out', 'list']).run('--to-out string')
+		self.assertEqual(out._writes, ['list\n', 'string\n'])
 
 	def test_version(self):
 		app, out, _ = self.embed()
@@ -228,7 +254,13 @@ class TestEmbedding(BaseTest):
 			clip.exit('Exiting!')
 		self.assertEqual(out._writes, ['Exiting!\n'])
 
-	# @TODO: Test embedding of confirm input
+	def test_embedded_confirm(self):
+		self.cache = None
+		def custom_input(prompt):
+			self.cache = prompt
+			return 'y'
+		self.assertTrue(clip.confirm('?', default='no', input_function=custom_input))
+		self.assertEqual(self.cache, '? [y/N]: ')
 
 
 class TestMistakes(BaseTest):
@@ -262,8 +294,18 @@ class TestMistakes(BaseTest):
 			def sub():
 				pass
 
+	def test_parameter_mistakes(self):
+		# If nargs != 1 and default is not a list
+		with self.assertRaises(TypeError):
+			app = clip.App()
+
+			@app.main()
+			@clip.opt('-a', nargs=-1, default='whoops')
+			def f(a):
+				pass
+
 	def test_argument_mistakes(self):
-		# Specifying more than one name for a command
+		# Specifying more than one name for an argument
 		with self.assertRaises(TypeError):
 			app = clip.App()
 
@@ -271,8 +313,6 @@ class TestMistakes(BaseTest):
 			@clip.arg('name', 'whoops')
 			def f(name):
 				pass
-
-	# @TODO: If nargs != 1 and default is not a list
 
 
 class TestExamples(BaseTest):
