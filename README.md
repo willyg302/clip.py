@@ -49,7 +49,7 @@ If you save the above code in a file called `chef.py`, you can then do the follo
 $ python chef.py -h
 chef: Hey, I em zee Svedeesh cheff!
 
-Usage: chef {arguments/options} {subcommand}
+Usage: chef {{options}} {{subcommand}}
 
 Options:
   -h, --help  Show this help message and exit
@@ -58,22 +58,22 @@ Subcommands:
   cook  Hefe-a zee cheff cuuk sume-a fuud
   bake  Tell zee cheff tu beke-a a pestry
 $ python chef.py cook -h
-cook: Hefe-a zee cheff cuuk sume-a fuud
+chef cook: Hefe-a zee cheff cuuk sume-a fuud
 
-Usage: cook {arguments/options} {subcommand}
+Usage: cook {{arguments}} {{options}}
 
 Arguments:
-  food  Neme-a ooff zee fuud
+  food [text]  Neme-a ooff zee fuud
 
 Options:
-  -h, --help   Show this help message and exit
-  -c, --count  Hoo mooch fuud yuoo vunt
+  -h, --help         Show this help message and exit
+  -c, --count [int]  Hoo mooch fuud yuoo vunt (default: 1)
 $ python chef.py cook burger
 Zee cheff veell cuuk burger
 $ python chef.py cook pie -c 5
 Zee cheff veell cuuk pie pie pie pie pie
 $ python chef.py bake --now
-Missing parameter "pastry".
+Error: Missing parameter "pastry".
 $ python chef.py bake cake --now
 Ookey ookey, I veell beke-a zee cake reeght evey!
 ```

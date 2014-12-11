@@ -411,13 +411,14 @@ def command(name=None, **attrs):
 
 class Command(object):
 
-	def __init__(self, name, callback, params, description=None, epilogue=None):
+	def __init__(self, name, callback, params, parent=None, description=None, epilogue=None, inherits=None):
 		# Add help to every command
 		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
 
 		self._name = name
 		self._callback = callback
 		self._params = ParameterDict(params)
+		self._parent = parent
 		self._description = description
 		self._epilogue = epilogue
 
@@ -434,8 +435,13 @@ class Command(object):
 	def _get_help(self):
 		return [self._name, self._description or '']
 
+	def _get_path(self):
+		path = self._parent._get_path() if self._parent is not None else []
+		return path + [self._name]
+
 	def subcommand(self, name=None, **attrs):
 		def decorator(f):
+			attrs['parent'] = self
 			cmd = command(name, **attrs)(f)
 			self._subcommands[cmd._name] = cmd
 			return cmd
@@ -480,7 +486,7 @@ class Command(object):
 		usage = []
 
 		# Header
-		header = self._name
+		header = ' '.join(self._get_path())
 		if self._description is not None:
 			header = '{}: {}'.format(header, self._description)
 		help_parts.append(header)
