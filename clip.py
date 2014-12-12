@@ -227,7 +227,7 @@ class Parameter(object):
 			consumed = [self._type(e) if self._type is not None else e for e in tokens[:n]]
 		except ValueError as e:
 			exit('Error: Invalid type given to "{}", expected {}'.format(self._name, self._type.__name__), True)
-		if n == 1:
+		if n == 1 and self._nargs == 1:
 			consumed = consumed[0]
 		self.post_consume(consumed)
 		return tokens[n:]
