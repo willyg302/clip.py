@@ -16,6 +16,8 @@ PY2 = sys.version_info[0] == 2
 
 input = raw_input if PY2 else input
 text_type = basestring if PY2 else str
+def is_func(e):
+	return hasattr(e, '__call__')
 
 
 ''' @TODO:
@@ -177,6 +179,9 @@ class Parameter(object):
 		raise NotImplementedError('_make_name/1 must be implemented by child classes')
 
 	def _make_default(self, default, nargs):
+		# The default is a function, just assume it returns the correct type
+		if is_func(default):
+			return default
 		if nargs != 0 and nargs != 1:
 			default = default or []
 			if not isinstance(default, list):
@@ -185,9 +190,11 @@ class Parameter(object):
 
 	def _make_type(self, t, default):
 		if t is None:
-			if isinstance(default, list):
-				return type(default[0]) if len(default) > 0 else None
-			return type(default) if default else None
+			if default is not None:
+				if isinstance(default, list):
+					return type(default[0]) if len(default) > 0 else None
+				return None if is_func(default) else type(default)
+			return None
 		return t
 
 	def _get_help_name(self):
@@ -244,7 +251,7 @@ class Parameter(object):
 		if self._required:
 			exit('Error: Missing parameter "{}".'.format(self._name), True)
 		# The provided default can be a function, whose return value will be used
-		self._value = self._default() if hasattr(self._default, '__call__') else self._default
+		self._value = self._default() if is_func(self._default) else self._default
 
 	def matches(self, token):
 		return not self._satisfied

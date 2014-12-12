@@ -69,6 +69,32 @@ $ python f.py --name Dave
 Hello Dave!
 ```
 
+You can also pass a function whose return value will become the parameter's value:
+
+```python
+def random_list():
+	import random
+	return random.sample(range(30), 3)
+
+@app.main()
+@clip.arg('random', nargs=3, default=random_list, type=int)
+def f(random):
+	clip.echo(random)
+```
+
+This will produce:
+
+```
+$ python f.py 1 2 3
+[1, 2, 3]
+$ python f.py 
+[21, 28, 1]
+$ python f.py 
+[28, 26, 3]
+```
+
+Note that if you pass a function, it is impossible for clip to ensure that the return value conforms to your parameter's other attributes. You should therefore take special care to make sure that your program handles default values correctly in this case.
+
 ### `type=None`
 
 A type to coerce the parameter's value into. If no type is provided, the type of the default value is used. If no default value is provided, the type is assumed to be a string. For example:
