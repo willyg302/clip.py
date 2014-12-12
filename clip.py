@@ -58,10 +58,10 @@ class ClipGlobals(object):
 
 class ClipExit(Exception):
 	def __init__(self, message=None, status=0):
-		self._message = message or 'clip exiting with status {}'.format(status)
-		self._status = status
+		self.message = message or 'clip exiting with status {}'.format(status)
+		self.status = status
 	def __str__(self):
-		return repr(self._message)
+		return repr(self.message)
 
 
 clip_globals = ClipGlobals()

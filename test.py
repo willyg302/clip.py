@@ -90,13 +90,13 @@ class TestGlobals(BaseTest):
 		try:
 			clip.exit('Woot!')
 		except clip.ClipExit as e:
-			self.assertEqual(e._message, 'Woot!')
+			self.assertEqual(e.message, 'Woot!')
 		# Error condition
 		try:
 			clip.exit(err=True)
 		except clip.ClipExit as e:
-			self.assertTrue(e._message.startswith('clip exiting'))
-			self.assertEqual(e._status, 1)
+			self.assertTrue(e.message.startswith('clip exiting'))
+			self.assertEqual(e.status, 1)
 
 	def test_confirm(self):
 		# All the standard accepted entries
@@ -305,6 +305,26 @@ class TestMistakes(BaseTest):
 			def sub():
 				pass
 
+		# Giving main an "inherits"
+		with self.assertRaises(AttributeError):
+			app = clip.App()
+
+			@app.main(inherits=['whoops'])
+			def f(whoops):
+				pass
+
+		# Inheriting a parameter that doesn't exist
+		with self.assertRaises(AttributeError):
+			app = clip.App()
+
+			@app.main()
+			def f():
+				pass
+
+			@f.subcommand(inherits=['whoops'])
+			def sub(whoops):
+				pass
+
 	def test_parameter_mistakes(self):
 		# If nargs != 1 and default is not a list
 		with self.assertRaises(TypeError):
@@ -324,9 +344,6 @@ class TestMistakes(BaseTest):
 			@clip.arg('name', 'whoops')
 			def f(name):
 				pass
-
-	# @TODO: Test mistake where inherit is given a param that doesn't exist
-	# - Also when main function is given inherits
 
 
 class TestExamples(BaseTest):

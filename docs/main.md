@@ -12,6 +12,7 @@
 - Advanced
   - [Embedding](embedding.md)
   - [How clip Works](how-clip-works.md)
+  - [Extending clip](extending-clip.md)
 
 ## FAQ
 
