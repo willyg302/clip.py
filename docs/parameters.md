@@ -176,6 +176,10 @@ def f():
 
 Had we not set `hidden=True`, we would have had to write `def f(version)`, which doesn't make much sense. As you can see, `hidden` is especially useful for such things as version flags.
 
+### `inherit_only=False`
+
+Mark this parameter as only inheritable, meaning it is hidden to the owning command. See the [Inheriting Parameters](inheriting-parameters.md) section for more information on this attribute.
+
 ### `help=None`
 
 Help text for this parameter. For example:

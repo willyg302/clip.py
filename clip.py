@@ -158,7 +158,7 @@ class Parameter(object):
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None,
 		         type=None, required=False, callback=None, hidden=False,
-		         help=None):
+		         inherit_only=False, help=None):
 		self._decls = param_decls
 		self._name = name or self._make_name(param_decls)
 		self._nargs = nargs
@@ -167,6 +167,7 @@ class Parameter(object):
 		self._required = required
 		self._callback = callback
 		self._hidden = hidden
+		self._inherit_only = inherit_only
 		self._help = help
 
 		self.reset()  # Do an initial reset to prime the parameter
@@ -214,6 +215,9 @@ class Parameter(object):
 
 	def hidden(self):
 		return self._hidden
+
+	def inherit_only(self):
+		return self._inherit_only
 
 	def value(self):
 		return self._value
@@ -271,11 +275,7 @@ class Option(Parameter):
 	'''A (usually) optional parameter.
 	'''
 
-	''' @TODO:
-
-	- global: If false, this can only be used by subcommands (True)
-
-	Should we do this?
+	''' @TODO: Should we do this?
 
 	- prompt: True, or a non-empty string to prompt for user input if not set (False)
 	- confirm: If prompt is also True, this asks for confirmation (False)
@@ -398,13 +398,16 @@ class Command(object):
 		self._description = description
 		self._epilogue = epilogue
 
+		self._inherited = []
 		# Add help to every command and shim in inherited parameters
 		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
 		if inherits is not None:
 			if self._parent is None:
 				raise AttributeError('A main function cannot inherit parameters')
 			for e in inherits:
-				params.append(self._parent._get_inherited_param(e))
+				param = self._parent._get_inherited_param(e)
+				params.append(param)
+				self._inherited.append(param.name())
 		self._params = ParameterDict(params)
 
 		self._subcommands = {}
@@ -460,7 +463,7 @@ class Command(object):
 
 		# Pass 3: Build the JSON-serializable object to return
 		for param in self._params.all():
-			if not param.hidden():
+			if not param.hidden() and (param.name() in self._inherited or not param.inherit_only()):
 				parsed[param.name()] = param.value()
 
 		return parsed

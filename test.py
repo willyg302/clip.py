@@ -247,7 +247,34 @@ class TestInheritance(BaseTest):
 		#   - Inheritance of a param two levels up (nested subcommand)
 		#   - Inheritance can be specified using decls, name, etc.
 
+	def test_inherits_args(self):
+		pass
 
+	def test_inherit_only(self):
+		app, out, err = self.embed()
+
+		@app.main()
+		@clip.flag('-s', inherit_only=True)
+		@clip.flag('-t')
+		def f(t):
+			clip.echo(t)
+
+		@f.subcommand(inherits=['-s', '-t'])
+		def sub(s, t):
+			clip.echo(s, err=True)
+			clip.echo(t, err=True)
+
+		parsed = app.parse(['-st', 'sub'])
+		self.assertEqual(parsed, {
+			't': True,
+			'sub': {
+				's': True,
+				't': True
+			}
+		})
+		app.invoke(parsed)
+		self.assertEqual(out._writes, ['True\n'])
+		self.assertEqual(err._writes, ['True\n', 'True\n'])
 
 
 class TestEmbedding(BaseTest):
