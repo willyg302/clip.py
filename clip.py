@@ -139,21 +139,6 @@ class Parameter(object):
 	A parameter consists of several *parameter declarations* followed by
 	keyword *attributes*. The parameter declarations represent the parameter
 	as it would be entered by users, e.g. 'arg' or ('-o', '--opt').
-
-	Attributes:
-	  - name: The name of this parameter. If not specified, a name will be
-	    inferred based on the parameter declarations.
-	  - nargs: The number of args this parameter consumes, -1 for infinite.
-	  - default: The value for this parameter if none is given.
-	  - type: A type to coerce the parameter's value into. If no type is
-	    provided, the type of the default value is used. If no default value
-	    is provided, the type remains a string.
-	  - required: If true, the parameter must be specified in the input.
-	  - callback: A function to invoke once this parameter has been matched
-	    in the input. It takes a single argument, the value of the parameter.
-	  - hidden: If True, this parameter will not be passed to the owning
-	    command's function. This is useful for help/version flags.
-	  - help: Help text for this parameter.
 	'''
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None,
