@@ -1,10 +1,10 @@
-![clip.py](https://raw.github.com/willyg302/clip.py/master/clip-logo-922.png "It looks like you're trying to make a CLI.")
+![clip.py](https://raw.github.com/willyg302/clip.py/master/clip-logo.png "It looks like you're trying to make a CLI.")
 
 -----
 
 [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat-square)](https://raw.githubusercontent.com/willyg302/clip.py/master/LICENSE)
 
-Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
+Embeddable, composable **c**ommand **l**ine **i**nterface **p**arsing
 
 ## Installing
 
@@ -82,11 +82,11 @@ Ookey ookey, I veell beke-a zee cake reeght evey!
 
 Call `python test.py` while in the root directory of this repo.
 
-## Roadmap (v0.2.0)
+## Roadmap (v0.3.0)
 
-- [ ] Finish redesign
-- [ ] Associated redesign tests
-- [ ] Basic documentation
+v0.3.0 will be a [tock](http://en.wikipedia.org/wiki/Intel_Tick-Tock) release, focused on fixing any bugs introduced in the v0.2.0 rewrite and finishing any slated features.
+
+- [ ] Finish `@TODO` items in code and tests
 
 ## Credits
 
