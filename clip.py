@@ -186,7 +186,9 @@ class Parameter(object):
 		name = [self._get_help_name()]
 		if self._nargs != 0:
 			name.append('[{}{}]'.format(self._type.__name__ if self._type else 'text', '' if self._nargs == 1 else '...'))
-		desc = [self._help or '']
+		desc = []
+		if self._help is not None:
+			desc.append(self._help)
 		if self._default:
 			desc.append('(default: {})'.format(self._default))
 		return [' '.join(name), ' '.join(desc)]
