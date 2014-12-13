@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>clip Todo Example</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+	<style type="text/css">
+		* {
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			box-sizing: border-box;
+		}
+		html {
+			height: 100%;
+		}
+		body {
+			margin: 0;
+			padding: 1em;
+			font-family: 'Open Sans', sans-serif;
+			background: #f9f9f9;
+		}
+		input[type=text] {
+			width: 100%;
+			border: 1px solid #dddddd;
+			font-size: 1.2em;
+			padding: 0.6em;
+			display: block;
+		}
+		#output p {
+			padding: 0.6em;
+			font-size: 1.2em;
+			font-family: monospace;
+			white-space: pre-wrap;
+			border: 1px solid #dddddd;
+			border-radius: 8px;
+		}
+		.error {
+			color: red;
+		}
+		.completed {
+			color: green;
+		}
+	</style>
+</head>
+<body>
+	<input id="input" type="text" placeholder="What do?">
+	<div id="output"></div>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/0.3.4/sockjs.min.js"></script>
+	<script>
+		var sock = new SockJS('http://localhost:8080/todo');
+		sock.onmessage = function(e) {
+			var message = e.data;
+			var output = document.getElementById('output');
+			output.innerHTML = "<p>" + message.replace(new RegExp('\n', 'g'), '<br>') + "</p>" + output.innerHTML;
+		};
+		document.getElementById('input').onkeypress = function(e) {
+			// Enter pressed?
+			if (e.keyCode === 10 || e.keyCode === 13) {
+				input = this.value;
+				this.value = '';
+				sock.send(input);
+			}
+		};
+	</script>
+</body>
+</html>
