@@ -112,7 +112,7 @@ Produces:
 $ python f.py 2 4 6 8 10
 30
 $ python f.py wuuutttt
-Error: Invalid type given to "numbers", expected int
+Error: Invalid type given to "numbers", expected int.
 ```
 
 In the above example, we provided a *list* of numbers to `default` because `nargs` was greater than 1. However, the type was still inferred properly.

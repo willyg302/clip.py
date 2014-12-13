@@ -67,7 +67,7 @@ Not only is this ugly, but it doesn't obey the [Principle of Least Astonishment]
 $ python calculator.py -s multiply 1 3 5 7
 105
 $ python calculator.py multiply -s 1 3 5 7
-Error: Invalid type given to "numbers", expected int
+Error: Invalid type given to "numbers", expected int.
 ```
 
 Hmm...maybe you could just add it to each subcommand?

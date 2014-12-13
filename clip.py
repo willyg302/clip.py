@@ -7,6 +7,17 @@ License: MIT, see LICENSE for more details
 import sys
 import itertools
 
+''' @TODO:
+
+- A prompt function:
+  - text: To show for prompt
+  - default: Default if no input given, if None then prompt will repeat until aborted (None)
+  - invisible: For password prompts (False)
+  - confirm: Ask for confirmation (False)
+  - type: The type to coerce input to (None)
+  - show_default: Whether to display the default value to users (True)
+'''
+
 
 ########################################
 # COMPATIBILITY
@@ -18,21 +29,6 @@ input = raw_input if PY2 else input
 text_type = basestring if PY2 else str
 def is_func(e):
 	return hasattr(e, '__call__')
-
-
-''' @TODO:
-
-- A prompt function:
-  - text: To show for prompt
-  - default: Default if no input given, if None then prompt will repeat until aborted (None)
-  - invisible: For password prompts (False)
-  - confirm: Ask for confirmation (False)
-  - type: The type to coerce input to (None)
-  - show_default: Whether to display the default value to users (True)
-
-- PRINT USAGE TO THE USER WHEN THEY ENTER SOMETHING WEIRD.
-  This means that usage should be a separate method?
-'''
 
 
 ########################################
@@ -222,7 +218,7 @@ class Parameter(object):
 		try:
 			consumed = [self._type(e) if self._type is not None else e for e in tokens[:n]]
 		except ValueError as e:
-			exit('Error: Invalid type given to "{}", expected {}'.format(self._name, self._type.__name__), True)
+			exit('Error: Invalid type given to "{}", expected {}.'.format(self._name, self._type.__name__), True)
 		if n == 1 and self._nargs == 1:
 			consumed = consumed[0]
 		self.post_consume(consumed)
@@ -573,6 +569,8 @@ class App(object):
 			tokens = sys.argv[1:]
 		if isinstance(tokens, text_type):
 			tokens = tokens.split()
-		self.invoke(self.parse(tokens))
-		self.reset()  # Clean up so the app can be used again
+		try:
+			self.invoke(self.parse(tokens))
+		finally:
+			self.reset()  # Clean up so the app can be used again
 		return self

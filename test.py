@@ -223,21 +223,6 @@ class TestHelp(BaseTest):
 		#self.make_kitchen_sink_app().run('b -h')
 
 
-
-'''
-HANDLING ERRORS:
-
-$ test.py -h
-Usage: test.py [OPTIONS] COMMAND [ARGS]...
-
-Error: no such option: -h
-$ test.py asdajnd
-Usage: test.py [OPTIONS] COMMAND [ARGS]...
-
-Error: No such command "asdajnd".
-'''
-
-
 class TestInheritance(BaseTest):
 
 	def test_inheritance(self):
@@ -377,9 +362,11 @@ class TestExamples(BaseTest):
 	'''Test documentation examples to protect against regressions.
 
 	If any of these tests fail, then the associated docs need to be updated.
+	Similarly, if any of the examples are updated they should be reflected
+	in the tests here.
 	'''
 
-	def test_getting_started(self):
+	def test_readme(self):
 		# Chef example in README and Getting Started section
 		app, out, err = self.embed()
 
@@ -401,26 +388,277 @@ class TestExamples(BaseTest):
 			clip.echo(response.format(pastry))
 
 		inputs = [
-			'cook bork --count 5',
-			'bake pie --now'
+			'-h',
+			'cook -h',
+			'cook burger',
+			'cook pie -c 5',
+			'bake --now',
+			'bake cake --now'
 		]
 		for e in inputs:
-			app.run(e)
+			try:
+				app.run(e)
+			except clip.ClipExit:
+				pass
 		self.assertEqual(out._writes, [
-			'Zee cheff veell cuuk bork bork bork bork bork\n',
-			'Ookey ookey, I veell beke-a zee pie reeght evey!\n'
+			'''chef: Hey, I em zee Svedeesh cheff!
+
+Usage: chef {{options}} {{subcommand}}
+
+Options:
+  -h, --help  Show this help message and exit
+
+Subcommands:
+  cook  Hefe-a zee cheff cuuk sume-a fuud
+  bake  Tell zee cheff tu beke-a a pestry
+''',
+			'''chef cook: Hefe-a zee cheff cuuk sume-a fuud
+
+Usage: cook {{arguments}} {{options}}
+
+Arguments:
+  food [text]  Neme-a ooff zee fuud
+
+Options:
+  -h, --help         Show this help message and exit
+  -c, --count [int]  Hoo mooch fuud yuoo vunt (default: 1)
+''',
+			'Zee cheff veell cuuk burger\n',
+			'Zee cheff veell cuuk pie pie pie pie pie\n',
+			'Ookey ookey, I veell beke-a zee cake reeght evey!\n'
+		])
+		self.assertEqual(err._writes, [
+			'Error: Missing parameter "pastry".\n'
 		])
 
+	def test_getting_started(self):
 		# Echo example
-		app, out, err = self.embed()
+		app, out, _ = self.embed()
 
 		@app.main()
 		@clip.arg('words', nargs=-1)
 		def echo(words):
 			clip.echo(' '.join(words))
 
-		app.run('Hello world!').run('')
-		self.assertEqual(out._writes, ['Hello world!\n', '\n'])
+		app.run('Hello world!').run('idk     what i doinggggg      hahahaa a')
+		self.assertEqual(out._writes, ['Hello world!\n', 'idk what i doinggggg hahahaa a\n'])
+
+	def test_commands(self):
+		# description
+		app, out, _ = self.embed()
+
+		@app.main(description='This thing does awesome stuff!')
+		def f():
+			pass
+
+		@f.subcommand(description='This is a sweet subcommand!')
+		def sub():
+			pass
+
+		for e in ['-h', 'sub -h']:
+			try:
+				app.run(e)
+			except clip.ClipExit:
+				pass
+		self.assertEqual(out._writes, [
+			'''f: This thing does awesome stuff!
+
+Usage: f {{options}} {{subcommand}}
+
+Options:
+  -h, --help  Show this help message and exit
+
+Subcommands:
+  sub  This is a sweet subcommand!
+''',
+			'''f sub: This is a sweet subcommand!
+
+Usage: sub {{options}}
+
+Options:
+  -h, --help  Show this help message and exit
+'''
+		])
+
+		# epilogue
+		app, out, _ = self.embed()
+
+		@app.main(epilogue='So long and thanks for all the fish!')
+		def f():
+			pass
+
+		try:
+			app.run('-h')
+		except clip.ClipExit:
+			pass
+		self.assertEqual(out._writes[0], '''f
+
+Usage: f {{options}}
+
+Options:
+  -h, --help  Show this help message and exit
+
+So long and thanks for all the fish!
+''')
+
+	def test_parameters(self):
+		# nargs
+		app, out, err = self.embed()
+
+		@app.main()
+		@clip.arg('stuff', nargs=3)
+		def f(stuff):
+			clip.echo('You entered: {}'.format(stuff))
+
+		for e in ['a', 'a b', 'a b c']:
+			try:
+				app.run(e)
+			except clip.ClipExit:
+				pass
+		self.assertEqual(out._writes, ["You entered: ['a', 'b', 'c']\n"])
+		self.assertEqual(err._writes, ['Error: Not enough arguments for "stuff".\n'] * 2)
+
+		# default
+		app, out, _ = self.embed()
+
+		@app.main()
+		@clip.opt('--name', default='Joe')
+		def f(name):
+			clip.echo('Hello {}!'.format(name))
+
+		app.run('').run('--name Dave')
+		self.assertEqual(out._writes, ['Hello Joe!\n', 'Hello Dave!\n'])
+
+		# type
+		app, out, err = self.embed()
+
+		@app.main()
+		@clip.arg('numbers', nargs=-1, default=[1, 2, 3])
+		def f(numbers):
+			clip.echo(sum(numbers))
+
+		for e in ['2 4 6 8 10', 'wuuutttt']:
+			try:
+				app.run(e)
+			except clip.ClipExit:
+				pass
+		self.assertEqual(out._writes, ['30\n'])
+		self.assertEqual(err._writes, ['Error: Invalid type given to "numbers", expected int.\n'])
+
+		# required
+		app, out, err = self.embed()
+
+		@app.main()
+		@clip.flag('--needed', required=True)
+		def f(needed):
+			clip.echo('Ahh, I needed that.')
+
+		for e in ['', '--needed']:
+			try:
+				app.run(e)
+			except clip.ClipExit:
+				pass
+		self.assertEqual(out._writes, ['Ahh, I needed that.\n'])
+		self.assertEqual(err._writes, ['Error: Missing parameter "needed".\n'])
+
+		# callback
+		app, out, _ = self.embed()
+
+		def shout(value):
+			clip.echo(' '.join(value).upper())
+
+		@app.main()
+		@clip.arg('words', nargs=-1, callback=shout)
+		def f(words):
+			pass
+
+		app.run('i feel da powah!')
+		self.assertEqual(out._writes[0], 'I FEEL DA POWAH!\n')
+
+		# help
+		app, out, _ = self.embed()
+
+		@app.main()
+		@clip.flag('--panic', help='Don\'t do this')
+		def f(panic):
+			pass
+
+		try:
+			app.run('-h')
+		except clip.ClipExit:
+			pass
+		self.assertEqual(out._writes[0], '''f
+
+Usage: f {{options}}
+
+Options:
+  -h, --help  Show this help message and exit
+  --panic     Don't do this
+''')
+
+	def test_inheriting_parameters(self):
+		# Calculator (here we only test the final version for expected output)
+		app, out, _ = self.embed()
+
+		@app.main()
+		@clip.arg('numbers', nargs=-1, type=int, inherit_only=True)
+		@clip.flag('-s', '--silent', inherit_only=True)
+		def calculator():
+			pass
+
+		@calculator.subcommand(inherits=['numbers', '-s'])
+		def add(numbers, silent):
+			if not silent:
+				clip.echo('Add these numbers? Okay, here we gooooo!')
+			clip.echo(sum(numbers))
+
+		@calculator.subcommand(inherits=['numbers', '--silent'])
+		def multiply(numbers, silent):
+			if not silent:
+				clip.echo('Wa-hoo, let\'s-a multiply these numbers!')
+			clip.echo(reduce(lambda x, y: x * y, numbers) if numbers else 0)
+
+		for e in ['add 1 3 5 7', 'multiply 1 3 5 7', 'add -s 1 3 5 7', '-s add 1 3 5 7']:
+			app.run(e)
+		self.assertEqual(out._writes, [
+			'Add these numbers? Okay, here we gooooo!\n', '16\n',
+			'Wa-hoo, let\'s-a multiply these numbers!\n', '105\n',
+			'16\n',
+			'16\n'
+		])
+
+		# Going deeper
+		app, out, _ = self.embed()
+
+		@app.main()
+		@clip.flag('-a')
+		def w(a):
+			clip.echo('a in w: {}'.format(a))
+
+		@w.subcommand()
+		@clip.flag('-b')
+		def x(b):
+			clip.echo('b in x: {}'.format(b))
+
+		@x.subcommand(inherits=['a'])
+		@clip.flag('-c')
+		def y(a, c):
+			clip.echo('a in y: {}'.format(a))
+			clip.echo('c in y: {}'.format(c))
+
+		@y.subcommand(inherits=['a', 'b', 'c'])
+		@clip.flag('-d')
+		def z(a, b, c, d):
+			clip.echo('All together now: {}'.format((a, b, c, d)))
+
+		app.run('-a x -b y -c z -d')
+		self.assertEqual(out._writes, [
+			'a in w: True\n',
+			'b in x: True\n',
+			'a in y: True\n',
+			'c in y: True\n',
+			'All together now: (True, True, True, True)\n'
+		])
 
 
 if __name__ == '__main__':
