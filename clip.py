@@ -403,6 +403,9 @@ class Command(object):
 		for v in self._subcommands.values():
 			v.reset()
 
+	def __call__(self, *args, **kwargs):
+		self._callback(*args, **kwargs)
+
 	def _get_help(self):
 		return [self._name, self._description or '']
 
