@@ -1,0 +1,11 @@
+site_name: Clip.py
+pages:
+- ['index.md', 'Home', 'Home']
+- ['getting-started.md', 'Beginner', 'Getting Started']
+- ['commands.md', 'Beginner', 'Commands']
+- ['parameters.md', 'Beginner', 'Parameters']
+- ['inheriting-parameters.md', 'Intermediate', 'Inheriting Parameters']
+- ['utilities.md', 'Intermediate', 'Utilities']
+- ['embedding.md', 'Advanced', 'Embedding']
+- ['how-clip-works.md', 'Advanced', 'How clip Works']
+- ['extending-clip.md', 'Advanced', 'Extending clip']

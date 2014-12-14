@@ -1,3 +1,4 @@
 *.py[cod]
 env/
 ./examples/clip.py
+site
