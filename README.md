@@ -12,7 +12,7 @@ clip is just a `pip install git+https://github.com/willyg302/clip.py.git@master`
 
 ## Basic Example
 
-This example is just to whet your appetite. For a more in-depth guide to using clip, please see the [docs](docs/main.md). Also, much thanks to the [encheferizer](http://www.tuco.de/home/jschef.htm) for translations.
+This example is just to whet your appetite. For a more in-depth guide to using clip, please see the [docs](docs/index.md). Also, much thanks to the [encheferizer](http://www.tuco.de/home/jschef.htm) for translations.
 
 ```python
 import clip
