@@ -2,18 +2,15 @@ A command is the basic building block of a clip application. You can create a co
 
 1. By specifying it as the main function of an app
 
-   ```python
-   @app.main()
-   def f():
-       pass
-   ```
+        @app.main()
+        def f():
+            pass
+
 2. By specifying it as a subcommand of another command
 
-   ```python
-   @some_command.subcommand()
-   def f():
-       pass
-   ```
+        @some_command.subcommand()
+        def f():
+            pass
 
 This section will look at the ways that you can customize your commands via decorator keyword arguments.
 
