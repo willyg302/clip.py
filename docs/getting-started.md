@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
 And the functionality:
 
-```
+```diff
 $ python echo.py Hello world!
 Hello world!
 $ python echo.py idk     what i doinggggg      hahahaa a

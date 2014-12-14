@@ -32,7 +32,7 @@ def sub():
 
 Produces the following:
 
-```
+```diff
 $ python f.py -h
 f: This thing does awesome stuff!
 
@@ -64,7 +64,7 @@ def f():
 
 Produces:
 
-```
+```diff
 $ python f.py -h
 f
 

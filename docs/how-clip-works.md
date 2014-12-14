@@ -4,7 +4,7 @@ Handling command line input seems deceptively simple up front: it's just a strin
 
 Here, we will illustrate how clip works by walking through a single invocation of our [Super Mario Calculator](inheriting-parameters.md) program:
 
-```
+```diff
 $ python calculator.py -s add 1 3 5 7
 ```
 
@@ -52,7 +52,7 @@ The entire goal of parsing is to turn this:
 
 into this:
 
-```
+```python
 {
 	'add': {
 		'numbers': [1, 3, 5, 7],
@@ -63,7 +63,7 @@ into this:
 
 But first, we *tokenize* user input into a list of strings. Luckily for us, most of the time Python does this for us and we can just use `sys.argv[1:]`:
 
-```
+```python
 ['-s', 'add', '1', '3', '5', '7']
 ```
 
@@ -95,7 +95,7 @@ clip.echo(app.parse('-s add 1 3 5 7'.split()))
 
 Now that we have this:
 
-```
+```python
 {
 	'add': {
 		'numbers': [1, 3, 5, 7],

@@ -38,7 +38,7 @@ def f(stuff):
 
 Produces:
 
-```
+```diff
 $ python f.py a
 Error: Not enough arguments for "stuff".
 $ python f.py a b
@@ -60,7 +60,7 @@ def f(name):
 
 Produces:
 
-```
+```diff
 $ python f.py
 Hello Joe!
 $ python f.py --name Dave
@@ -82,7 +82,7 @@ def f(random):
 
 This will produce:
 
-```
+```diff
 $ python f.py 1 2 3
 [1, 2, 3]
 $ python f.py 
@@ -106,7 +106,7 @@ def f(numbers):
 
 Produces:
 
-```
+```diff
 $ python f.py 2 4 6 8 10
 30
 $ python f.py wuuutttt
@@ -128,7 +128,7 @@ def f(needed):
 
 Produces:
 
-```
+```diff
 $ python f.py 
 Error: Missing parameter "needed".
 $ python f.py --needed
@@ -153,7 +153,7 @@ def f(words):
 
 Produces:
 
-```
+```diff
 $ python f.py i feel da powah!
 I FEEL DA POWAH!
 ```
@@ -191,7 +191,7 @@ def f(panic):
 
 Produces:
 
-```
+```diff
 $ python f.py -h
 f
 

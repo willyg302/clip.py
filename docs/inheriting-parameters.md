@@ -24,7 +24,7 @@ def multiply(numbers):
 
 It even works!
 
-```
+```diff
 $ python calculator.py add 1 3 5 7
 Add these numbers? Okay, here we gooooo!
 16
@@ -61,7 +61,7 @@ def multiply(numbers):
 
 Not only is this ugly, but it doesn't obey the [Principle of Least Astonishment](http://en.wikipedia.org/wiki/Principle_of_least_astonishment):
 
-```
+```diff
 $ python calculator.py -s multiply 1 3 5 7
 105
 $ python calculator.py multiply -s 1 3 5 7
@@ -94,7 +94,7 @@ def multiply(numbers, silent):
 
 Well, that's not [DRY](http://en.wikipedia.org/wiki/Don%27t_repeat_yourself) at all. And it *still* doesn't really work:
 
-```
+```diff
 $ python calculator.py add -s 1 3 5 7
 16
 $ python calculator.py -s add 1 3 5 7
@@ -128,7 +128,7 @@ def multiply(numbers, silent):
 
 And the moment of truth:
 
-```
+```diff
 $ python calculator.py add -s 1 3 5 7
 16
 $ python calculator.py -s add 1 3 5 7
@@ -192,7 +192,7 @@ def z(a, b, c, d):
 
 And as expected:
 
-```
+```diff
 $ python f.py -a x -b y -c z -d
 a in w: True
 b in x: True

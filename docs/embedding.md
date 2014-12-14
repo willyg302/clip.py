@@ -196,7 +196,7 @@ Here we mount our `TodoConnection` to the `/todo` route so that our client can c
 
 The following commands were run, in order from bottom to top:
 
-```
+```diff
 add Get milk from store
 add Call Mom right now!
 list

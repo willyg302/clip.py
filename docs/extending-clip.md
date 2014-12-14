@@ -126,7 +126,7 @@ def sort(sort_type):
 
 And the functionality:
 
-```
+```diff
 $ python sort.py 
 You selected quicksort
 $ python sort.py -t spaghettisort
