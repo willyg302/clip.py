@@ -1,5 +1,5 @@
 *.py[cod]
-env/
-./examples/clip.py
-site
 *.egg-info
+env/
+site/
+./examples/clip.py

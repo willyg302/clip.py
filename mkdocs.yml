@@ -1,4 +1,6 @@
-site_name: clip
+site_name: clip Documentation
+site_description: "Embeddable, composable command line interface parsing"
+repo_url: https://github.com/willyg302/clip.py
 pages:
 - ['index.md', 'Home']
 - ['getting-started.md', 'Beginner', 'Getting Started']
