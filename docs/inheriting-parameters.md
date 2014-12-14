@@ -1,5 +1,3 @@
-# Inheriting Parameters
-
 clip strives to make it easy to build composable applications, so a powerful concept in clip is parameter inheritance. To illustrate how this can be useful, let's build a little Mario math program.
 
 ## The Problem

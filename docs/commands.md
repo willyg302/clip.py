@@ -1,5 +1,3 @@
-# Commands
-
 A command is the basic building block of a clip application. You can create a command out of a regular function in one of two ways:
 
 1. By specifying it as the main function of an app

@@ -1,5 +1,3 @@
-# How clip Works
-
 > **NOTE**: This section is intended for those who want to understand the inner workings of clip. If you just want to *use* clip, you can stop reading right now. On the other hand, if you want to contribute to clip development, read on!
 
 Handling command line input seems deceptively simple up front: it's just a string of tokens, right? However, there are many things that can go wrong and, perhaps even worse, many subtleties to CLI token parsing that complicate the matter a thousand-fold.

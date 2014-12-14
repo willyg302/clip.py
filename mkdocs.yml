@@ -1,6 +1,6 @@
-site_name: Clip.py
+site_name: clip
 pages:
-- ['index.md', 'Home', 'Home']
+- ['index.md', 'Home']
 - ['getting-started.md', 'Beginner', 'Getting Started']
 - ['commands.md', 'Beginner', 'Commands']
 - ['parameters.md', 'Beginner', 'Parameters']
@@ -9,3 +9,4 @@ pages:
 - ['embedding.md', 'Advanced', 'Embedding']
 - ['how-clip-works.md', 'Advanced', 'How clip Works']
 - ['extending-clip.md', 'Advanced', 'Extending clip']
+theme: readthedocs

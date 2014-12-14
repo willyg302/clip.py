@@ -1,5 +1,3 @@
-# Extending clip
-
 This section will show you how to extend clip to support your own CLI needs. We will be adding a new parameter type: a "choice" option! This option is a single value that must be chosen from a list of valid values.
 
 > **NOTE**: It might be tempting to submit pull requests for your awesome extensions to be included in clip core, but one of clip's goals is to be "lean and mean". Instead, we prefer to **make it easy to write extensions**. Thus, if you run into any stumbling blocks while writing your own extensions, please submit an issue or pull request describing the issue! We'll try to iron it out quickly.

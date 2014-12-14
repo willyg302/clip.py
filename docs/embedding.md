@@ -1,5 +1,3 @@
-# Embedding
-
 One of clip's strengths is its support for *embedded* applications. An embedded application is one which is not run directly from the command line, but is "hooked in" to a larger project.
 
 In this section we will look at the creation of a simple Python-backed todo website using clip. You can see the full sources in the `examples/todo/` directory of this repository.

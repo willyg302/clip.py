@@ -1,18 +1,4 @@
-# clip Documentation
-
-## Contents
-
-- Beginner
-  - [Getting Started](getting-started.md)
-  - [Commands](commands.md)
-  - [Parameters](parameters.md)
-- Intermediate
-  - [Inheriting Parameters](inheriting-parameters.md)
-  - [Utilities](utilities.md)
-- Advanced
-  - [Embedding](embedding.md)
-  - [How clip Works](how-clip-works.md)
-  - [Extending clip](extending-clip.md)
+Welcome to the clip Documentation! If this is your first time here, [Getting Started](getting-started.md) is a great place to begin.
 
 ## FAQ
 

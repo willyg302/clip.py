@@ -2,6 +2,7 @@
 
 -----
 
+[![docs](https://readthedocs.org/projects/clippy/badge/?style=flat-square)](http://clippy.readthedocs.org/)
 [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat-square)](https://raw.githubusercontent.com/willyg302/clip.py/master/LICENSE)
 
 Embeddable, composable **c**ommand **l**ine **i**nterface **p**arsing
@@ -12,7 +13,7 @@ clip is just a `pip install git+https://github.com/willyg302/clip.py.git@master`
 
 ## Basic Example
 
-This example is just to whet your appetite. For a more in-depth guide to using clip, please see the [docs](docs/index.md). Also, much thanks to the [encheferizer](http://www.tuco.de/home/jschef.htm) for translations.
+This example is just to whet your appetite. For a more in-depth guide to using clip, please see the [docs](http://clippy.readthedocs.org/). Also, much thanks to the [encheferizer](http://www.tuco.de/home/jschef.htm) for translations.
 
 ```python
 import clip

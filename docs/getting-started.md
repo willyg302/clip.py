@@ -1,5 +1,3 @@
-# Getting Started
-
 Learning clip is best done by example, so this guide will walk you through making the Swedish Chef program in the README. Here it is again, in case you've forgotten:
 
 ```python

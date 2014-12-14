@@ -1,5 +1,3 @@
-# Utilities
-
 ## Echo
 
 clip provides a `clip.echo()` function that prints to your app's out/err streams instead of the system standard out/err. It is recommended that you use this instead of the regular Python `print()` function whenever possible, especially if your app has custom streams.

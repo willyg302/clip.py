@@ -1,5 +1,3 @@
-# Parameters
-
 By themselves, commands don't really do anything. You leverage the real power of the command line by defining parameters for your app's commands.
 
 There are a variety of parameter types (arguments, options, etc.), but they all share some common properties. When you define a parameter using a decorator, you pass it several required positional arguments followed by any number of optional keyword arguments, in Python referred to as `*args` and `**kwargs`, respectively.
