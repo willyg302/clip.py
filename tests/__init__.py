@@ -704,7 +704,3 @@ Options:
 				pass
 		self.assertEqual(out._writes, ['You selected quicksort\n', 'You selected mergesort\n'])
 		self.assertEqual(err._writes, ['Error: "spaghettisort" is not a valid choice (choose from quicksort, bubblesort, mergesort).\n'])
-
-
-if __name__ == '__main__':
-	unittest.main()

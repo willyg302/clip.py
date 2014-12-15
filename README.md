@@ -81,7 +81,13 @@ Ookey ookey, I veell beke-a zee cake reeght evey!
 
 ## Testing
 
-Call `python test.py` while in the root directory of this repo.
+Call test with
+
+    python setup.py test
+
+Or
+
+    nosetests
 
 ## Roadmap (v0.3.0)
 
