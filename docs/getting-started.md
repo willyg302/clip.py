@@ -61,7 +61,7 @@ def add(item, quantity):
 
 One of the cool things about clip is that every command can have unlimited subcommands. You attach a subcommand to a command by using its name in a decorator. In this case, our main command was called `shopping()`, so we use the `@shopping.subcommand()` decorator.
 
-Now let's have some real fun and give this subcommand some parameters! The first thing to understand is that there are basically two types of parameters: positional and optional. A positional parameter, most commonly called an *argument*, gets associated with a variable based on its position in the user input. An optional parameter, usually called an *option*, must be prefixed with the option name, e.g. `-c` or `--count`.
+Now let's have some real fun and give this subcommand some parameters! The first thing to understand is that there are basically two types of parameters: positional and optional. A positional parameter, most commonly called an *argument*, gets associated with a variable based on its position in the user input. An optional parameter, usually called an *option*, must be prefixed with the option name, e.g. `-q` or `--quantity`.
 
 Here we are defining one argument called "item" by using the `@clip.arg()` decorator. We are also defining an option called "quantity" by using the `@clip.opt()` decorator. These will automagically get passed into our `add()` function as the `item` and `quantity` parameters, respectively.
 
