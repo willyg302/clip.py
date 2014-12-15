@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
 	name='clip.py',
@@ -9,6 +9,7 @@ setup(
 	license='MIT',
 	py_modules=['clip'],
 	description='Embeddable, composable command line interface parsing',
+	test_suite='tests',
 	classifiers=[
 		'License :: OSI Approved :: MIT License',
 		'Programming Language :: Python :: 2.7',
