@@ -367,33 +367,31 @@ class TestExamples(BaseTest):
 	'''
 
 	def test_readme(self):
-		# Chef example in README and Getting Started section
+		# Shopping list example in README and Getting Started section
 		app, out, err = self.embed()
 
-		@app.main(description='Hey, I em zee Svedeesh cheff!')
-		def chef():
+		@app.main(description='A very unhelpful shopping list CLI program')
+		def shopping():
 			pass
 
-		@chef.subcommand(description='Hefe-a zee cheff cuuk sume-a fuud')
-		@clip.arg('food', required=True, help='Neme-a ooff zee fuud')
-		@clip.opt('-c', '--count', default=1, help='Hoo mooch fuud yuoo vunt')
-		def cook(food, count):
-			clip.echo('Zee cheff veell cuuk {}'.format(' '.join([food] * count)))
+		@shopping.subcommand(description='Add an item to the list')
+		@clip.arg('item', required=True)
+		@clip.opt('-q', '--quantity', default=1, help='How many of the item to get')
+		def add(item, quantity):
+			clip.echo('Added "{} - {}" to the list'.format(item, quantity))
 
-		@chef.subcommand(description='Tell zee cheff tu beke-a a pestry')
-		@clip.arg('pastry', required=True, help='Neme-a ooff zee pestry')
-		@clip.flag('--now', help='Iff yuoo\'re-a in a hoorry')
-		def bake(pastry, now):
-			response = 'Ookey ookey, I veell beke-a zee {} reeght evey!' if now else 'Ooh, yuoo vunt a {}?'
-			clip.echo(response.format(pastry))
+		@shopping.subcommand(description='See all items on the list')
+		@clip.flag('--sorted', help='View items in alphabetical order')
+		def view(sorted):
+			clip.echo('This is your {}sorted list'.format('' if sorted else 'un'))
 
 		inputs = [
 			'-h',
-			'cook -h',
-			'cook burger',
-			'cook pie -c 5',
-			'bake --now',
-			'bake cake --now'
+			'add -h',
+			'add',
+			'add cookies -q 10',
+			'view',
+			'view --sorted'
 		]
 		for e in inputs:
 			try:
@@ -401,34 +399,34 @@ class TestExamples(BaseTest):
 			except clip.ClipExit:
 				pass
 		self.assertEqual(out._writes, [
-			'''chef: Hey, I em zee Svedeesh cheff!
+			'''shopping: A very unhelpful shopping list CLI program
 
-Usage: chef {{options}} {{subcommand}}
+Usage: shopping {{options}} {{subcommand}}
 
 Options:
   -h, --help  Show this help message and exit
 
 Subcommands:
-  cook  Hefe-a zee cheff cuuk sume-a fuud
-  bake  Tell zee cheff tu beke-a a pestry
+  add   Add an item to the list
+  view  See all items on the list
 ''',
-			'''chef cook: Hefe-a zee cheff cuuk sume-a fuud
+			'''shopping add: Add an item to the list
 
-Usage: cook {{arguments}} {{options}}
+Usage: add {{arguments}} {{options}}
 
 Arguments:
-  food [text]  Neme-a ooff zee fuud
+  item [text]  
 
 Options:
-  -h, --help         Show this help message and exit
-  -c, --count [int]  Hoo mooch fuud yuoo vunt (default: 1)
+  -h, --help            Show this help message and exit
+  -q, --quantity [int]  How many of the item to get (default: 1)
 ''',
-			'Zee cheff veell cuuk burger\n',
-			'Zee cheff veell cuuk pie pie pie pie pie\n',
-			'Ookey ookey, I veell beke-a zee cake reeght evey!\n'
+			'Added "cookies - 10" to the list\n',
+			'This is your unsorted list\n',
+			'This is your sorted list\n'
 		])
 		self.assertEqual(err._writes, [
-			'Error: Missing parameter "pastry".\n'
+			'Error: Missing parameter "item".\n'
 		])
 
 	def test_getting_started(self):

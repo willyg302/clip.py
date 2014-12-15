@@ -13,29 +13,27 @@ clip is just a `pip install git+https://github.com/willyg302/clip.py.git@master`
 
 ## Basic Example
 
-This example is just to whet your appetite. For a more in-depth guide to using clip, please see the [docs](http://clippy.readthedocs.org/). Also, much thanks to the [encheferizer](http://www.tuco.de/home/jschef.htm) for translations.
+This example is just to whet your appetite. For a more in-depth guide to using clip, please see the [docs](http://clippy.readthedocs.org/).
 
 ```python
 import clip
 
 app = clip.App()
 
-@app.main(description='Hey, I em zee Svedeesh cheff!')
-def chef():
+@app.main(description='A very unhelpful shopping list CLI program')
+def shopping():
 	pass
 
-@chef.subcommand(description='Hefe-a zee cheff cuuk sume-a fuud')
-@clip.arg('food', required=True, help='Neme-a ooff zee fuud')
-@clip.opt('-c', '--count', default=1, help='Hoo mooch fuud yuoo vunt')
-def cook(food, count):
-	clip.echo('Zee cheff veell cuuk {}'.format(' '.join([food] * count)))
+@shopping.subcommand(description='Add an item to the list')
+@clip.arg('item', required=True)
+@clip.opt('-q', '--quantity', default=1, help='How many of the item to get')
+def add(item, quantity):
+	clip.echo('Added "{} - {}" to the list'.format(item, quantity))
 
-@chef.subcommand(description='Tell zee cheff tu beke-a a pestry')
-@clip.arg('pastry', required=True, help='Neme-a ooff zee pestry')
-@clip.flag('--now', help='Iff yuoo\'re-a in a hoorry')
-def bake(pastry, now):
-	response = 'Ookey ookey, I veell beke-a zee {} reeght evey!' if now else 'Ooh, yuoo vunt a {}?'
-	clip.echo(response.format(pastry))
+@shopping.subcommand(description='See all items on the list')
+@clip.flag('--sorted', help='View items in alphabetical order')
+def view(sorted):
+	clip.echo('This is your {}sorted list'.format('' if sorted else 'un'))
 
 if __name__ == '__main__':
 	try:
@@ -44,50 +42,44 @@ if __name__ == '__main__':
 		pass
 ```
 
-If you save the above code in a file called `chef.py`, you can then do the following:
+If you save the above code in a file called `shopping.py`, you can then do the following:
 
 ```
-$ python chef.py -h
-chef: Hey, I em zee Svedeesh cheff!
+$ python shopping.py -h
+shopping: A very unhelpful shopping list CLI program
 
-Usage: chef {{options}} {{subcommand}}
+Usage: shopping {{options}} {{subcommand}}
 
 Options:
   -h, --help  Show this help message and exit
 
 Subcommands:
-  cook  Hefe-a zee cheff cuuk sume-a fuud
-  bake  Tell zee cheff tu beke-a a pestry
-$ python chef.py cook -h
-chef cook: Hefe-a zee cheff cuuk sume-a fuud
+  add   Add an item to the list
+  view  See all items on the list
+$ python shopping.py add -h
+shopping add: Add an item to the list
 
-Usage: cook {{arguments}} {{options}}
+Usage: add {{arguments}} {{options}}
 
 Arguments:
-  food [text]  Neme-a ooff zee fuud
+  item [text]  
 
 Options:
-  -h, --help         Show this help message and exit
-  -c, --count [int]  Hoo mooch fuud yuoo vunt (default: 1)
-$ python chef.py cook burger
-Zee cheff veell cuuk burger
-$ python chef.py cook pie -c 5
-Zee cheff veell cuuk pie pie pie pie pie
-$ python chef.py bake --now
-Error: Missing parameter "pastry".
-$ python chef.py bake cake --now
-Ookey ookey, I veell beke-a zee cake reeght evey!
+  -h, --help            Show this help message and exit
+  -q, --quantity [int]  How many of the item to get (default: 1)
+$ python shopping.py add
+Error: Missing parameter "item".
+$ python shopping.py add cookies -q 10
+Added "cookies - 10" to the list
+$ python shopping.py view
+This is your unsorted list
+$ python shopping.py view --sorted
+This is your sorted list
 ```
 
 ## Testing
 
-Call test with
-
-    python setup.py test
-
-Or
-
-    nosetests
+Call tests with `python setup.py test`.
 
 ## Roadmap (v0.3.0)
 
