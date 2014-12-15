@@ -178,6 +178,9 @@ class TestParse(BaseTest):
 	#   - Test required/nargs (should be part of kitchen sink)
 	#   - Test default. This includes a case where default is a function!
 
+	# Add tests for calling a Command-wrapped function as if it were a function.
+	# This includes functions that return something, validate that they do so correctly.
+
 
 class TestInvoke(BaseTest):
 
