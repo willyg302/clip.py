@@ -420,6 +420,9 @@ class Command(object):
 			return self._parent._get_inherited_param(name)
 		raise AttributeError('Unable to inherit parameter "{}"'.format(name))
 
+	def name(self):
+		return self._name
+
 	def subcommand(self, name=None, **attrs):
 		def decorator(f):
 			attrs['parent'] = self
@@ -486,7 +489,7 @@ class Command(object):
 		if opts:
 			usage.append('{{options}}')
 			help_parts.append(make_help_section(opts, 'Options:'))
-		subs = self._subcommands.values()
+		subs = sorted(self._subcommands.values(), key=lambda e: e.name())
 		if subs:
 			usage.append('{{subcommand}}')
 			help_parts.append(make_help_section(subs, 'Subcommands:'))
