@@ -2,6 +2,7 @@
 
 -----
 
+[![Travis](https://img.shields.io/travis/willyg302/clip.py.svg?style=flat-square)](https://travis-ci.org/willyg302/clip.py)
 [![docs](https://readthedocs.org/projects/clippy/badge/?style=flat-square)](http://clippy.readthedocs.org/)
 [![license](http://img.shields.io/badge/license-MIT-red.svg?style=flat-square)](https://raw.githubusercontent.com/willyg302/clip.py/master/LICENSE)
 

@@ -599,6 +599,8 @@ Options:
 
 	def test_inheriting_parameters(self):
 		# Calculator (here we only test the final version for expected output)
+		from functools import reduce
+
 		app, out, _ = self.embed()
 
 		@app.main()

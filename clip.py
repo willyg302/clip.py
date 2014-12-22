@@ -29,6 +29,8 @@ input = raw_input if PY2 else input
 text_type = basestring if PY2 else str
 def is_func(e):
 	return hasattr(e, '__call__')
+def iteritems(d):
+	return d.iteritems() if PY2 else d.items()
 
 
 ########################################
@@ -459,9 +461,9 @@ class Command(object):
 
 	def invoke(self, parsed):
 		# First invoke this command's callback
-		self._callback(**{k: v for k, v in parsed.iteritems() if k not in self._subcommands})
+		self._callback(**{k: v for k, v in iteritems(parsed) if k not in self._subcommands})
 		# Invoke subcommands (realistically only one should be invoked)
-		for k, v in parsed.iteritems():
+		for k, v in iteritems(parsed):
 			if k in self._subcommands:
 				self._subcommands[k].invoke(v)
 

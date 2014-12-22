@@ -1,4 +1,5 @@
 import clip
+from functools import reduce
 
 app = clip.App()
 
