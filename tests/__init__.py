@@ -173,15 +173,6 @@ class TestParse(BaseTest):
 			self.assertTrue(e in err._writes[i])
 
 
-	# @TODO:
-	#   - Test type (should be part of kitchen sink)
-	#   - Test required/nargs (should be part of kitchen sink)
-	#   - Test default. This includes a case where default is a function!
-
-	# Add tests for calling a Command-wrapped function as if it were a function.
-	# This includes functions that return something, validate that they do so correctly.
-
-
 class TestInvoke(BaseTest):
 
 	def test_invoke(self):
@@ -217,26 +208,136 @@ class TestInvoke(BaseTest):
 			app.run('--version')
 		self.assertEqual(out._writes, ['Version 0.0.0\n'])
 
+	def test_call_command(self):
+		app, out, _ = self.embed()
+
+		@app.main()
+		@clip.arg('number', type=int)
+		def f(number):
+			clip.echo('Hey there {}'.format(number))
+			return 42 * number
+
+		self.assertEqual(f(5), 210)
+		self.assertEqual(out._writes[0], 'Hey there 5\n')
+
+	def test_default_is_function(self):
+		app, out, _ = self.embed()
+
+		def fn():
+			clip.echo('No name provided')
+
+		@app.main()
+		@clip.opt('--name', default=fn)
+		def f(name):
+			if name:
+				clip.echo('Hello {}!'.format(name))
+
+		app.run('').run('--name Dave')
+		self.assertEqual(out._writes, ['No name provided\n', 'Hello Dave!\n'])
+
 
 class TestHelp(BaseTest):
 
-	def test_help(self):
-		pass
-		# @TODO
-		#self.make_kitchen_sink_app().run('b -h')
+	def test_basic_help(self):
+		app, out, _ = self.embed()
+
+		@app.main()
+		def f():
+			pass
+
+		try:
+			app.run('-h')
+		except clip.ClipExit:
+			pass
+		self.assertEqual(out._writes[0], '''f
+
+Usage: f {{options}}
+
+Options:
+  -h, --help  Show this help message and exit
+''')
+
+	def test_full_help(self):
+		app, out, _ = self.embed()
+
+		@app.main(description='Description', epilogue='So long and thanks for all the fish!')
+		@clip.arg('yo')
+		@clip.opt('-s', '--something', type=int, nargs=3, default=[1, 2, 3], help='Does stuff')
+		@clip.flag('-n', '--nothing')
+		def f(yo, something, nothing):
+			pass
+
+		@f.subcommand(description='Oh lookee! A subcommand!')
+		def x():
+			pass
+
+		try:
+			app.run('-h')
+		except clip.ClipExit:
+			pass
+		self.assertEqual(out._writes[0], '''f: Description
+
+Usage: f {{arguments}} {{options}} {{subcommand}}
+
+Arguments:
+  yo [text]  
+
+Options:
+  -h, --help                Show this help message and exit
+  -s, --something [int...]  Does stuff (default: [1, 2, 3])
+  -n, --nothing             
+
+Subcommands:
+  x  Oh lookee! A subcommand!
+
+So long and thanks for all the fish!
+''')
 
 
 class TestInheritance(BaseTest):
 
 	def test_inheritance(self):
-		pass
-		# @TODO:
-		#   - All inheritance cases
-		#   - Inheritance of a param two levels up (nested subcommand)
-		#   - Inheritance can be specified using decls, name, etc.
+		app, out, err = self.embed()
+
+		@app.main()
+		@clip.flag('--flag')
+		def f(flag):
+			clip.echo(flag)
+
+		@f.subcommand()
+		def x():
+			pass
+
+		@x.subcommand(inherits=['flag'])
+		def y(flag):
+			clip.echo(flag, err=True)
+
+		app.run('--flag x y')
+		self.assertEqual(out._writes, ['True\n'])
+		self.assertEqual(err._writes, ['True\n'])
 
 	def test_inherits_args(self):
-		pass
+		app, out, _ = self.embed()
+
+		@app.main()
+		@clip.flag('-b', '--boop', inherit_only=True)
+		def f():
+			pass
+
+		@f.subcommand(inherits=['boop'])
+		def by_name(boop):
+			clip.echo("name " + str(boop))
+
+		@f.subcommand(inherits=['-b'])
+		def by_short(boop):
+			clip.echo("short " + str(boop))
+
+		@f.subcommand(inherits=['--boop'])
+		def by_long(boop):
+			clip.echo("long " + str(boop))
+
+		app.run('-b by_name').run('-b by_short').run('-b by_long')
+		self.assertEqual(out._writes, ['name True\n', 'short True\n', 'long True\n'])
 
 	def test_inherit_only(self):
 		app, out, err = self.embed()
@@ -359,351 +460,3 @@ class TestMistakes(BaseTest):
 			@clip.arg('name', 'whoops')
 			def f(name):
 				pass
-
-
-class TestExamples(BaseTest):
-	'''Test documentation examples to protect against regressions.
-
-	If any of these tests fail, then the associated docs need to be updated.
-	Similarly, if any of the examples are updated they should be reflected
-	in the tests here.
-	'''
-
-	def test_readme(self):
-		# Shopping list example in README and Getting Started section
-		app, out, err = self.embed()
-
-		@app.main(description='A very unhelpful shopping list CLI program')
-		def shopping():
-			pass
-
-		@shopping.subcommand(description='Add an item to the list')
-		@clip.arg('item', required=True)
-		@clip.opt('-q', '--quantity', default=1, help='How many of the item to get')
-		def add(item, quantity):
-			clip.echo('Added "{} - {}" to the list'.format(item, quantity))
-
-		@shopping.subcommand(description='See all items on the list')
-		@clip.flag('--sorted', help='View items in alphabetical order')
-		def view(sorted):
-			clip.echo('This is your {}sorted list'.format('' if sorted else 'un'))
-
-		inputs = [
-			'-h',
-			'add -h',
-			'add',
-			'add cookies -q 10',
-			'view',
-			'view --sorted'
-		]
-		for e in inputs:
-			try:
-				app.run(e)
-			except clip.ClipExit:
-				pass
-		self.assertEqual(out._writes, [
-			'''shopping: A very unhelpful shopping list CLI program
-
-Usage: shopping {{options}} {{subcommand}}
-
-Options:
-  -h, --help  Show this help message and exit
-
-Subcommands:
-  add   Add an item to the list
-  view  See all items on the list
-''',
-			'''shopping add: Add an item to the list
-
-Usage: add {{arguments}} {{options}}
-
-Arguments:
-  item [text]  
-
-Options:
-  -h, --help            Show this help message and exit
-  -q, --quantity [int]  How many of the item to get (default: 1)
-''',
-			'Added "cookies - 10" to the list\n',
-			'This is your unsorted list\n',
-			'This is your sorted list\n'
-		])
-		self.assertEqual(err._writes, [
-			'Error: Missing parameter "item".\n'
-		])
-
-	def test_getting_started(self):
-		# Echo example
-		app, out, _ = self.embed()
-
-		@app.main()
-		@clip.arg('words', nargs=-1)
-		def echo(words):
-			clip.echo(' '.join(words))
-
-		app.run('Hello world!').run('idk     what i doinggggg      hahahaa a')
-		self.assertEqual(out._writes, ['Hello world!\n', 'idk what i doinggggg hahahaa a\n'])
-
-	def test_commands(self):
-		# description
-		app, out, _ = self.embed()
-
-		@app.main(description='This thing does awesome stuff!')
-		def f():
-			pass
-
-		@f.subcommand(description='This is a sweet subcommand!')
-		def sub():
-			pass
-
-		for e in ['-h', 'sub -h']:
-			try:
-				app.run(e)
-			except clip.ClipExit:
-				pass
-		self.assertEqual(out._writes, [
-			'''f: This thing does awesome stuff!
-
-Usage: f {{options}} {{subcommand}}
-
-Options:
-  -h, --help  Show this help message and exit
-
-Subcommands:
-  sub  This is a sweet subcommand!
-''',
-			'''f sub: This is a sweet subcommand!
-
-Usage: sub {{options}}
-
-Options:
-  -h, --help  Show this help message and exit
-'''
-		])
-
-		# epilogue
-		app, out, _ = self.embed()
-
-		@app.main(epilogue='So long and thanks for all the fish!')
-		def f():
-			pass
-
-		try:
-			app.run('-h')
-		except clip.ClipExit:
-			pass
-		self.assertEqual(out._writes[0], '''f
-
-Usage: f {{options}}
-
-Options:
-  -h, --help  Show this help message and exit
-
-So long and thanks for all the fish!
-''')
-
-	def test_parameters(self):
-		# nargs
-		app, out, err = self.embed()
-
-		@app.main()
-		@clip.arg('stuff', nargs=3)
-		def f(stuff):
-			clip.echo('You entered: {}'.format(stuff))
-
-		for e in ['a', 'a b', 'a b c']:
-			try:
-				app.run(e)
-			except clip.ClipExit:
-				pass
-		self.assertEqual(out._writes, ["You entered: ['a', 'b', 'c']\n"])
-		self.assertEqual(err._writes, ['Error: Not enough arguments for "stuff".\n'] * 2)
-
-		# default
-		app, out, _ = self.embed()
-
-		@app.main()
-		@clip.opt('--name', default='Joe')
-		def f(name):
-			clip.echo('Hello {}!'.format(name))
-
-		app.run('').run('--name Dave')
-		self.assertEqual(out._writes, ['Hello Joe!\n', 'Hello Dave!\n'])
-
-		# type
-		app, out, err = self.embed()
-
-		@app.main()
-		@clip.arg('numbers', nargs=-1, default=[1, 2, 3])
-		def f(numbers):
-			clip.echo(sum(numbers))
-
-		for e in ['2 4 6 8 10', 'wuuutttt']:
-			try:
-				app.run(e)
-			except clip.ClipExit:
-				pass
-		self.assertEqual(out._writes, ['30\n'])
-		self.assertEqual(err._writes, ['Error: Invalid type given to "numbers", expected int.\n'])
-
-		# required
-		app, out, err = self.embed()
-
-		@app.main()
-		@clip.flag('--needed', required=True)
-		def f(needed):
-			clip.echo('Ahh, I needed that.')
-
-		for e in ['', '--needed']:
-			try:
-				app.run(e)
-			except clip.ClipExit:
-				pass
-		self.assertEqual(out._writes, ['Ahh, I needed that.\n'])
-		self.assertEqual(err._writes, ['Error: Missing parameter "needed".\n'])
-
-		# callback
-		app, out, _ = self.embed()
-
-		def shout(value):
-			clip.echo(' '.join(value).upper())
-
-		@app.main()
-		@clip.arg('words', nargs=-1, callback=shout)
-		def f(words):
-			pass
-
-		app.run('i feel da powah!')
-		self.assertEqual(out._writes[0], 'I FEEL DA POWAH!\n')
-
-		# help
-		app, out, _ = self.embed()
-
-		@app.main()
-		@clip.flag('--panic', help='Don\'t do this')
-		def f(panic):
-			pass
-
-		try:
-			app.run('-h')
-		except clip.ClipExit:
-			pass
-		self.assertEqual(out._writes[0], '''f
-
-Usage: f {{options}}
-
-Options:
-  -h, --help  Show this help message and exit
-  --panic     Don't do this
-''')
-
-	def test_inheriting_parameters(self):
-		# Calculator (here we only test the final version for expected output)
-		from functools import reduce
-
-		app, out, _ = self.embed()
-
-		@app.main()
-		@clip.arg('numbers', nargs=-1, type=int, inherit_only=True)
-		@clip.flag('-s', '--silent', inherit_only=True)
-		def calculator():
-			pass
-
-		@calculator.subcommand(inherits=['numbers', '-s'])
-		def add(numbers, silent):
-			if not silent:
-				clip.echo('Add these numbers? Okay, here we gooooo!')
-			clip.echo(sum(numbers))
-
-		@calculator.subcommand(inherits=['numbers', '--silent'])
-		def multiply(numbers, silent):
-			if not silent:
-				clip.echo('Wa-hoo, let\'s-a multiply these numbers!')
-			clip.echo(reduce(lambda x, y: x * y, numbers) if numbers else 0)
-
-		for e in ['add 1 3 5 7', 'multiply 1 3 5 7', 'add -s 1 3 5 7', '-s add 1 3 5 7']:
-			app.run(e)
-		self.assertEqual(out._writes, [
-			'Add these numbers? Okay, here we gooooo!\n', '16\n',
-			'Wa-hoo, let\'s-a multiply these numbers!\n', '105\n',
-			'16\n',
-			'16\n'
-		])
-
-		# Going deeper
-		app, out, _ = self.embed()
-
-		@app.main()
-		@clip.flag('-a')
-		def w(a):
-			clip.echo('a in w: {}'.format(a))
-
-		@w.subcommand()
-		@clip.flag('-b')
-		def x(b):
-			clip.echo('b in x: {}'.format(b))
-
-		@x.subcommand(inherits=['a'])
-		@clip.flag('-c')
-		def y(a, c):
-			clip.echo('a in y: {}'.format(a))
-			clip.echo('c in y: {}'.format(c))
-
-		@y.subcommand(inherits=['a', 'b', 'c'])
-		@clip.flag('-d')
-		def z(a, b, c, d):
-			clip.echo('All together now: {}'.format((a, b, c, d)))
-
-		app.run('-a x -b y -c z -d')
-		self.assertEqual(out._writes, [
-			'a in w: True\n',
-			'b in x: True\n',
-			'a in y: True\n',
-			'c in y: True\n',
-			'All together now: (True, True, True, True)\n'
-		])
-
-	def test_extending_clip(self):
-		# The sorting program
-		class Choice(clip.Option):
-			'''A special option that must be chosen from a list of valid values.
-
-			The default value will be the first item of the list.
-			'''
-
-			def __init__(self, param_decls, **attrs):
-				try:
-					self._choices = attrs.pop('choices')
-				except KeyError:
-					raise AttributeError('You must specify the choices to select from')
-				if not isinstance(self._choices, list) or len(self._choices) == 0:
-					raise AttributeError('"choices" must be a nonempty list of valid values')
-				attrs['nargs'] = 1
-				attrs['default'] = self._choices[0]
-				clip.Option.__init__(self, param_decls, **attrs)
-
-			def consume(self, tokens):
-				tokens.pop(0)  # Pop the choice from the tokens array
-				selected = tokens.pop(0)
-				if selected not in self._choices:
-					clip.exit('Error: "{}" is not a valid choice (choose from {}).'.format(selected, ', '.join(self._choices)), True)
-				clip.Parameter.post_consume(self, selected)
-				return tokens
-
-		def choice(*param_decls, **attrs):
-			return clip._make_param(Choice, param_decls, **attrs)
-
-		app, out, err = self.embed()
-
-		@app.main()
-		@choice('-t', '--type', name='sort_type', choices=['quicksort', 'bubblesort', 'mergesort'])
-		def sort(sort_type):
-			clip.echo('You selected {}'.format(sort_type))
-
-		for e in ['', '-t spaghettisort', '-t mergesort']:
-			try:
-				app.run(e)
-			except clip.ClipExit:
-				pass
-		self.assertEqual(out._writes, ['You selected quicksort\n', 'You selected mergesort\n'])
-		self.assertEqual(err._writes, ['Error: "spaghettisort" is not a valid choice (choose from quicksort, bubblesort, mergesort).\n'])
