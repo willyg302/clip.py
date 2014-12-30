@@ -7,20 +7,9 @@ License: MIT, see LICENSE for more details
 import sys
 import itertools
 
-''' @TODO:
-
-- A prompt function:
-  - text: To show for prompt
-  - default: Default if no input given, if None then prompt will repeat until aborted (None)
-  - invisible: For password prompts (False)
-  - confirm: Ask for confirmation (False)
-  - type: The type to coerce input to (None)
-  - show_default: Whether to display the default value to users (True)
-'''
-
 
 ########################################
-# COMPATIBILITY
+# COMPATIBILITY & UTILITIES
 ########################################
 
 PY2 = sys.version_info[0] == 2
@@ -31,6 +20,37 @@ def is_func(e):
 	return hasattr(e, '__call__')
 def iteritems(d):
 	return d.iteritems() if PY2 else d.items()
+
+def get_input_fn(f=None, invisible=False):
+	if f is not None:
+		return f
+	if not invisible:
+		return input
+	import getpass
+	return getpass.getpass
+
+def prompt_fn(f, s, default=None, type=None, repeat=False):
+	default = default or ''
+	while True:
+		try:
+			ret = f(s) or (default() if is_func(default) else default)
+			ret = type(ret) if type is not None else ret
+		except (KeyboardInterrupt, EOFError):
+			raise_abort()
+		except ValueError:
+			echo('Please provide an {}'.format(type.__name__))
+		else:
+			if ret or not repeat:
+				return ret
+
+def determine_type(t, default):
+	if t is None:
+		if default is not None:
+			if isinstance(default, list):
+				return type(default[0]) if len(default) > 0 else None
+			return None if is_func(default) else type(default)
+		return None
+	return t
 
 
 ########################################
@@ -74,6 +94,9 @@ def exit(message=None, err=False):
 		echo(message, err)
 	raise ClipExit(message, 1 if err else 0)
 
+def raise_abort():
+	exit('Operation aborted by user', True)
+
 def confirm(prompt, default=None, show_default=True, abort=False, input_function=None):
 	'''Prompts for confirmation from the user.
 	'''
@@ -83,20 +106,34 @@ def confirm(prompt, default=None, show_default=True, abort=False, input_function
 		'no': False,
 		'n': False
 	}
-	if input_function is None:
-		input_function = input
+	input_function = get_input_fn(input_function)
 	if default not in ['yes', 'no', None]:
 		default = None
 	if show_default:
 		prompt = '{} [{}/{}]: '.format(prompt, 'Y' if default == 'yes' else 'y', 'N' if default == 'no' else 'n')
 	while True:
-		choice = input_function(prompt).lower() or default
+		choice = prompt_fn(input_function, prompt, default).lower()
 		if choice in valid:
 			if valid[choice] == False and abort:
-				exit('Operation aborted by user', True)
+				raise_abort()
 			return valid[choice]
 		else:
 			echo('Please respond with "yes" or "no" (or "y" or "n").')
+
+def prompt(text, default=None, show_default=True, invisible=False, confirm=False, type=None, input_function=None):
+	'''Prompts for input from the user.
+	'''
+	t = determine_type(type, default)
+	input_function = get_input_fn(input_function, invisible)
+	if default is not None and show_default:
+		text = '{} [{}]: '.format(text, default)
+	while True:
+		val = prompt_fn(input_function, text, default, t, repeat=True)
+		if not confirm:
+			return val
+		if val == prompt_fn(input_function, 'Confirm: ', default, t, repeat=True):
+			return val
+		echo('Error: The two values you entered do not match', True)
 
 
 ########################################
@@ -146,7 +183,7 @@ class Parameter(object):
 		self._name = name or self._make_name(param_decls)
 		self._nargs = nargs
 		self._default = self._make_default(default, nargs)
-		self._type = self._make_type(type, self._default)
+		self._type = determine_type(type, self._default)
 		self._required = required
 		self._callback = callback
 		self._hidden = hidden
@@ -171,15 +208,6 @@ class Parameter(object):
 			if not isinstance(default, list):
 				raise TypeError('Default value must be list with nargs={}'.format(nargs))
 		return default
-
-	def _make_type(self, t, default):
-		if t is None:
-			if default is not None:
-				if isinstance(default, list):
-					return type(default[0]) if len(default) > 0 else None
-				return None if is_func(default) else type(default)
-			return None
-		return t
 
 	def _get_help_name(self):
 		return self._name
@@ -258,13 +286,6 @@ class Argument(Parameter):
 
 class Option(Parameter):
 	'''A (usually) optional parameter.
-	'''
-
-	''' @TODO: Should we do this?
-
-	- prompt: True, or a non-empty string to prompt for user input if not set (False)
-	- confirm: If prompt is also True, this asks for confirmation (False)
-	- invisible: If prompt is also True, this hides input from the user (False)
 	'''
 
 	def __init__(self, param_decls, **attrs):

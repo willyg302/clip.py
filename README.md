@@ -86,7 +86,8 @@ Call tests with `python setup.py test`.
 
 v0.3.0 will be a [tock](http://en.wikipedia.org/wiki/Intel_Tick-Tock) release, focused on fixing any bugs introduced in the v0.2.0 rewrite and finishing any slated features.
 
-- [ ] Finish `@TODO` items in code and tests
+- [x] Finish `@TODO` items in code and tests
+- [ ] Feature freeze to exercise code and find bugs
 
 ## Credits
 

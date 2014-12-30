@@ -113,6 +113,22 @@ class TestGlobals(BaseTest):
 			self.assertFalse(clip.confirm('?'))
 		self.assertEqual(len(out._writes), 3)
 
+	def test_prompt(self):
+		# Standard with confirm
+		with mock_clip_input(['7', '7']):
+			self.assertEqual(clip.prompt('?', type=int, confirm=True), 7)
+		# Bad input
+		_, out, _ = self.embed()
+		with mock_clip_input(['', 'hehehe', '42']):
+			self.assertEqual(clip.prompt('?', type=int), 42)
+		self.assertEqual(len(out._writes), 2)
+		# Interrupt
+		def cause_interrupt():
+			raise KeyboardInterrupt
+		with mock_clip_input(['']):
+			with self.assertRaises(clip.ClipExit):
+				clip.prompt('?', default=cause_interrupt)
+
 
 class TestParse(BaseTest):
 
@@ -388,6 +404,14 @@ class TestEmbedding(BaseTest):
 			return 'y'
 		self.assertTrue(clip.confirm('?', default='no', input_function=custom_input))
 		self.assertEqual(self.cache, '? [y/N]: ')
+
+	def test_embedded_prompt(self):
+		self.cache = None
+		def custom_input(prompt):
+			self.cache = prompt
+			return 37
+		self.assertEqual(clip.prompt('?', default=42, input_function=custom_input), 37)
+		self.assertEqual(self.cache, '? [42]: ')
 
 
 class TestMistakes(BaseTest):

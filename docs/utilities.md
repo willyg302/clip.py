@@ -52,3 +52,23 @@ When embedding an app, you can specify the function to use to prompt users for i
 - `show_default=True`: Whether to display the prompt defaults.
 - `abort=False`: Whether to abort upon a negative response.
 - `input_function=None`: The function to use to prompt users for input, defaults to Python's standard `input()` or `raw_input()`.
+
+## Input Prompt
+
+Use `clip.prompt()` to prompt the user for input. It returns the user's response:
+
+```python
+num = clip.prompt('Enter a number', default=42)
+```
+
+When embedding an app, you can specify the function to use to prompt users for input. See the [Embedding](embedding.md) section for more details.
+
+### Parameters
+
+- `text`: A string representing the prompt to display to the user.
+- `default=None`: A default value for the prompt if the user simply presses Enter. Like with clip parameters, you can pass a function whose return value will become the default.
+- `show_default=True`: Whether to display the prompt default.
+- `invisible=False`: If `True`, user input is not echoed to the shell. Good for password prompts.
+- `confirm=False`: If `True`, the user is prompted a second time for confirmation.
+- `type=None`: A type to coerce the return value into. If no type is provided, the type of the default value is used. If no default value is provided, the type is assumed to be a string.
+- `input_function=None`: The function to use to prompt users for input, defaults to Python's standard `input()` or `raw_input()` in the case of a visible prompt and the `getpass` module for an invisible prompt.
