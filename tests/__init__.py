@@ -252,6 +252,23 @@ class TestInvoke(BaseTest):
 		self.assertEqual(out._writes, ['No name provided\n', 'Hello Dave!\n'])
 
 
+class TestCommand(BaseTest):
+
+	def test_default(self):
+		app, out, _ = self.embed()
+
+		@app.main(default='x')
+		def f():
+			pass
+
+		@f.subcommand()
+		def x():
+			clip.echo('x invoked!')
+
+		app.run('x').run('')
+		self.assertEqual(out._writes, ['x invoked!\n', 'x invoked!\n'])
+
+
 class TestHelp(BaseTest):
 
 	def test_basic_help(self):

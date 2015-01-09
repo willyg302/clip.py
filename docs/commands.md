@@ -16,6 +16,46 @@ This section will look at the ways that you can customize your commands via deco
 
 ## Keyword Arguments
 
+### `default=None`
+
+A string specifying the default input to use when no input is given by the user. For example:
+
+```python
+@app.main(default='x')
+def f():
+	pass
+
+@f.subcommand(default='-h')
+@clip.opt('--num', type=int, required=True)
+def x(num):
+	clip.echo('I was invoked with the number {}!'.format(num))
+```
+
+Produces:
+
+```diff
+$ python f.py x --num 5
+I was invoked with the number 5!
+$ python f.py x
+f x
+
+Usage: x {{options}}
+
+Options:
+  -h, --help   Show this help message and exit
+  --num [int]  
+$ python f.py
+f x
+
+Usage: x {{options}}
+
+Options:
+  -h, --help   Show this help message and exit
+  --num [int]  
+```
+
+As you can see, `default` is especially good for specifying default subcommands to run, or printing the help text when no input is entered.
+
 ### `description=None`
 
 A command's description is printed out in help message screens. For example:

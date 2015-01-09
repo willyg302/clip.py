@@ -397,10 +397,11 @@ def command(name=None, **attrs):
 
 class Command(object):
 
-	def __init__(self, name, callback, params, parent=None, description=None, epilogue=None, inherits=None):
+	def __init__(self, name, callback, params, parent=None, default=None, description=None, epilogue=None, inherits=None):
 		self._name = name
 		self._callback = callback
 		self._parent = parent
+		self._default = default
 		self._description = description
 		self._epilogue = epilogue
 
@@ -456,6 +457,9 @@ class Command(object):
 
 	def parse(self, tokens):
 		parsed = {}
+
+		if not tokens and self._default is not None:
+			tokens = self._default.split()
 
 		# Pass 1: Forward - fill out parameter values based on input string
 		while tokens:

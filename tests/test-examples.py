@@ -87,6 +87,43 @@ Options:
 		self.assertEqual(out._writes, ['Hello world!\n', 'idk what i doinggggg hahahaa a\n'])
 
 	def test_commands(self):
+		# default
+		app, out, _ = self.embed()
+
+		@app.main(default='x')
+		def f():
+			pass
+
+		@f.subcommand(default='-h')
+		@clip.opt('--num', type=int, required=True)
+		def x(num):
+			clip.echo('I was invoked with the number {}!'.format(num))
+
+		for e in ['x --num 5', 'x', '']:
+			try:
+				app.run(e)
+			except clip.ClipExit:
+				pass
+		self.assertEqual(out._writes, [
+			'I was invoked with the number 5!\n',
+			'''f x
+
+Usage: x {{options}}
+
+Options:
+  -h, --help   Show this help message and exit
+  --num [int]  
+''',
+			'''f x
+
+Usage: x {{options}}
+
+Options:
+  -h, --help   Show this help message and exit
+  --num [int]  
+'''
+		])
+
 		# description
 		app, out, _ = self.embed()
 
