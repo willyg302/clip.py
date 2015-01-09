@@ -90,7 +90,7 @@ Options:
 		# default
 		app, out, _ = self.embed()
 
-		@app.main(default='x')
+		@app.main(default='x --num 19')
 		def f():
 			pass
 
@@ -114,14 +114,7 @@ Options:
   -h, --help   Show this help message and exit
   --num [int]  
 ''',
-			'''f x
-
-Usage: x {{options}}
-
-Options:
-  -h, --help   Show this help message and exit
-  --num [int]  
-'''
+			'I was invoked with the number 19!\n'
 		])
 
 		# description

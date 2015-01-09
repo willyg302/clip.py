@@ -21,7 +21,7 @@ This section will look at the ways that you can customize your commands via deco
 A string specifying the default input to use when no input is given by the user. For example:
 
 ```python
-@app.main(default='x')
+@app.main(default='x --num 19')
 def f():
 	pass
 
@@ -45,13 +45,7 @@ Options:
   -h, --help   Show this help message and exit
   --num [int]  
 $ python f.py
-f x
-
-Usage: x {{options}}
-
-Options:
-  -h, --help   Show this help message and exit
-  --num [int]  
+I was invoked with the number 19!
 ```
 
 As you can see, `default` is especially good for specifying default subcommands to run, or printing the help text when no input is entered.
