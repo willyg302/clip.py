@@ -1,0 +1,7 @@
+include LICENSE
+recursive-include examples *
+recursive-include tests *
+recursive-exclude examples *.pyc
+recursive-exclude examples *.pyo
+recursive-exclude tests *.pyc
+recursive-exclude tests *.pyo

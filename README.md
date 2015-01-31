@@ -10,7 +10,7 @@ Embeddable, composable **c**ommand **l**ine **i**nterface **p**arsing
 
 ## Installing
 
-clip is just a `pip install git+https://github.com/willyg302/clip.py.git@master` away.
+clip is just a `pip install clip.py` away.
 
 ## Basic Example
 

@@ -1,5 +1,8 @@
 *.py[cod]
+*.egg-ignore
 *.egg-info
+build/
+dist/
 env/
 site/
 ./examples/clip.py
