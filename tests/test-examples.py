@@ -174,6 +174,32 @@ Options:
 So long and thanks for all the fish!
 ''')
 
+		# tree_view
+		app, out, _ = self.embed()
+
+		@app.main(tree_view='-t')
+		@clip.flag('-t', '--tree', hidden=True)
+		def w():
+			pass
+
+		@w.subcommand()
+		def x():
+			pass
+
+		@x.subcommand()
+		def y():
+			pass
+
+		@y.subcommand()
+		def z():
+			pass
+
+		try:
+			app.run('--tree')
+		except clip.ClipExit:
+			pass
+		self.assertEqual(out._writes, ['w\n', '  x\n', '    y\n', '      z\n'])
+
 	def test_parameters(self):
 		# nargs
 		app, out, err = self.embed()

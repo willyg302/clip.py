@@ -110,7 +110,9 @@ def confirm(prompt, default=None, show_default=True, abort=False, input_function
 	if default not in ['yes', 'no', None]:
 		default = None
 	if show_default:
-		prompt = '{} [{}/{}]: '.format(prompt, 'Y' if default == 'yes' else 'y', 'N' if default == 'no' else 'n')
+		prompt = '{} [{}/{}]: '.format(prompt,
+				'Y' if default == 'yes' else 'y',
+				'N' if default == 'no' else 'n')
 	while True:
 		choice = prompt_fn(input_function, prompt, default).lower()
 		if choice in valid:
@@ -120,7 +122,8 @@ def confirm(prompt, default=None, show_default=True, abort=False, input_function
 		else:
 			echo('Please respond with "yes" or "no" (or "y" or "n").')
 
-def prompt(text, default=None, show_default=True, invisible=False, confirm=False, type=None, input_function=None):
+def prompt(text, default=None, show_default=True, invisible=False,
+           confirm=False, type=None, input_function=None):
 	'''Prompts for input from the user.
 	'''
 	t = determine_type(type, default)
@@ -177,8 +180,8 @@ class Parameter(object):
 	'''
 
 	def __init__(self, param_decls, name=None, nargs=1, default=None,
-		         type=None, required=False, callback=None, hidden=False,
-		         inherit_only=False, help=None):
+	             type=None, required=False, callback=None, hidden=False,
+	             inherit_only=False, help=None):
 		self._decls = param_decls
 		self._name = name or self._make_name(param_decls)
 		self._nargs = nargs
@@ -215,7 +218,9 @@ class Parameter(object):
 	def _get_help(self):
 		name = [self._get_help_name()]
 		if self._nargs != 0:
-			name.append('[{}{}]'.format(self._type.__name__ if self._type else 'text', '' if self._nargs == 1 else '...'))
+			name.append('[{}{}]'.format(
+					self._type.__name__ if self._type else 'text',
+					'' if self._nargs == 1 else '...'))
 		desc = []
 		if self._help is not None:
 			desc.append(self._help)
@@ -250,7 +255,8 @@ class Parameter(object):
 		try:
 			consumed = [self._type(e) if self._type is not None else e for e in tokens[:n]]
 		except ValueError as e:
-			exit('Error: Invalid type given to "{}", expected {}.'.format(self._name, self._type.__name__), True)
+			exit('Error: Invalid type given to "{}", expected {}.'.format(
+					self._name, self._type.__name__), True)
 		if n == 1 and self._nargs == 1:
 			consumed = consumed[0]
 		self.post_consume(consumed)
@@ -397,7 +403,8 @@ def command(name=None, **attrs):
 
 class Command(object):
 
-	def __init__(self, name, callback, params, parent=None, default=None, description=None, epilogue=None, inherits=None):
+	def __init__(self, name, callback, params, parent=None, default=None,
+	             description=None, epilogue=None, inherits=None, tree_view=None):
 		self._name = name
 		self._callback = callback
 		self._parent = parent
@@ -407,7 +414,8 @@ class Command(object):
 
 		self._inherited = []
 		# Add help to every command and shim in inherited parameters
-		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True, help='Show this help message and exit'))
+		params.insert(0, Flag(('-h', '--help'), callback=self.help, hidden=True,
+		                      help='Show this help message and exit'))
 		if inherits is not None:
 			if self._parent is None:
 				raise AttributeError('A main function cannot inherit parameters')
@@ -416,6 +424,12 @@ class Command(object):
 				params.append(param)
 				self._inherited.append(param.name())
 		self._params = ParameterDict(params)
+		# Handle tree view
+		if tree_view is not None:
+			c = self._params[tree_view]
+			if not isinstance(c, Flag):
+				raise TypeError('tree_view must be a Flag')
+			c._callback = self.tree_view
 
 		self._subcommands = {}
 
@@ -529,6 +543,15 @@ class Command(object):
 			help_parts.append(self._epilogue)
 
 		exit('\n\n'.join(help_parts))
+
+	def tree_view(self, value):
+		echo('{}{}'.format(" " * (value - 1), self._name))
+		subs = sorted(self._subcommands.values(), key=lambda e: e.name())
+		if subs:
+			for sub in subs:
+				sub.tree_view(value + 2)
+		if value == 1:
+			exit()
 
 
 ########################################

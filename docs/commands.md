@@ -113,3 +113,38 @@ So long and thanks for all the fish!
 ### `inherits=None`
 
 In clip commands can be nested indefinitely, so it only makes sense that commands can also inherit parameters from their *parents*. This concept is covered in the [Inheriting Parameters](inheriting-parameters.md) section.
+
+### `tree_view=None`
+
+Pass the name of a Flag that, if called, will display a recursive tree view of the command and all its subcommands. For example:
+
+```python
+@app.main(tree_view='-t')
+@clip.flag('-t', '--tree', hidden=True)
+def w():
+    pass
+
+@w.subcommand()
+def x():
+    pass
+
+@x.subcommand()
+def y():
+    pass
+
+@y.subcommand()
+def z():
+    pass
+```
+
+Produces:
+
+```diff
+$ python f.py --tree
+w
+  x
+    y
+      z
+```
+
+This is particularly useful for a brief overview of a large program with many commands. Note that you should not use the given flag for anything except a placeholder to invoke the tree view, as many of its attributes will be overridden.

@@ -482,6 +482,15 @@ class TestMistakes(BaseTest):
 			def sub(whoops):
 				pass
 
+		# Giving tree_view something other than a flag
+		with self.assertRaises(TypeError):
+			app = clip.App()
+
+			@app.main(tree_view='arg')
+			@clip.arg('arg', help='whoops')
+			def f(arg):
+				pass
+
 	def test_parameter_mistakes(self):
 		# If nargs != 1 and default is not a list
 		with self.assertRaises(TypeError):
