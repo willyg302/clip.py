@@ -63,11 +63,14 @@ class ClipGlobals(object):
 		self._stdout = None
 		self._stderr = None
 
-	def echo(self, message, err=False):
+	def echo(self, message, err=False, nl=True):
 		stream = self._stderr if err else self._stdout
 		if stream is None:
 			raise TypeError('clip {} stream has not been initialized'.format('err' if err else 'out'))
-		stream.write(str(message) + "\n")
+		stream.write(str(message) + ("\n" if nl else ""))
+		# Custom streams may not implement a flush() method
+		if hasattr(stream, 'flush'):
+			stream.flush()
 
 	def set_stdout(self, stream):
 		self._stdout = stream
@@ -86,8 +89,8 @@ class ClipExit(Exception):
 
 clip_globals = ClipGlobals()
 
-def echo(message, err=False):
-	clip_globals.echo(message, err)
+def echo(message, err=False, nl=True):
+	clip_globals.echo(message, err, nl)
 
 def exit(message=None, err=False):
 	if message:

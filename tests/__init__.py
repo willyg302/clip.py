@@ -82,7 +82,9 @@ class TestGlobals(BaseTest):
 		cg.set_stderr(err)
 		cg.echo('My my')
 		cg.echo('What have I done?', err=True)
-		self.assertEqual(out._writes, ['My my\n'])
+		for i in range(10):
+			cg.echo('.', nl=False)
+		self.assertEqual(out._writes, ['My my\n'] + ['.'] * 10)
 		self.assertEqual(err._writes, ['What have I done?\n'])
 
 	def test_exit(self):

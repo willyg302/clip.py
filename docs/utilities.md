@@ -6,6 +6,7 @@ clip provides a `clip.echo()` function that prints to your app's out/err streams
 
 - `message`: The message to echo.
 - `err=False`: Whether this is an error message.
+- `nl=True`: Whether to output a newline at the end of the message.
 
 ## Exit
 
