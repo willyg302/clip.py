@@ -4,8 +4,9 @@ clip.py: Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
 Copyright: (c) 2014 William Gaul
 License: MIT, see LICENSE for more details
 '''
-import sys
 import itertools
+import shlex
+import sys
 
 
 ########################################
@@ -629,7 +630,7 @@ class App(object):
 		if tokens is None:
 			tokens = sys.argv[1:]
 		if isinstance(tokens, text_type):
-			tokens = tokens.split()
+			tokens = shlex.split(tokens)
 		try:
 			self.invoke(self.parse(tokens))
 		finally:

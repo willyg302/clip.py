@@ -67,8 +67,10 @@ class BaseTest(unittest.TestCase):
 		@clip.opt('--to-out')
 		@clip.opt('--to-err')
 		def f(to_out, to_err):
-			clip.echo(to_out)
-			clip.echo(to_err, err=True)
+			if to_out is not None:
+				clip.echo(to_out)
+			if to_err is not None:
+				clip.echo(to_err, err=True)
 
 		return app, out, err
 
@@ -207,9 +209,10 @@ class TestInvoke(BaseTest):
 		self.assertEqual(self.b[2], 'o o p'.split())
 
 	def test_run(self):
-		app, out, _ = self.make_embedded_app()
-		app.run(['--to-out', 'list']).run('--to-out string')
+		app, out, err = self.make_embedded_app()
+		app.run(['--to-out', 'list']).run('--to-out string').run('--to-err "two words"')
 		self.assertEqual(out._writes, ['list\n', 'string\n'])
+		self.assertEqual(err._writes, ['two words\n'])
 
 	def test_version(self):
 		app, out, _ = self.embed()
