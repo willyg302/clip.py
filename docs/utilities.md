@@ -71,5 +71,6 @@ When embedding an app, you can specify the function to use to prompt users for i
 - `show_default=True`: Whether to display the prompt default.
 - `invisible=False`: If `True`, user input is not echoed to the shell. Good for password prompts.
 - `confirm=False`: If `True`, the user is prompted a second time for confirmation.
+- `skip=False`: Allows users to enter an empty string, returning `None`. If `confirm=True`, this also skips the confirmation.
 - `type=None`: A type to coerce the return value into. If no type is provided, the type of the default value is used. If no default value is provided, the type is assumed to be a string.
 - `input_function=None`: The function to use to prompt users for input, defaults to Python's standard `input()` or `raw_input()` in the case of a visible prompt and the `getpass` module for an invisible prompt.

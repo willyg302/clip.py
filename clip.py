@@ -30,11 +30,13 @@ def get_input_fn(f=None, invisible=False):
 	import getpass
 	return getpass.getpass
 
-def prompt_fn(f, s, default=None, type=None, repeat=False):
+def prompt_fn(f, s, default=None, type=None, skip=False, repeat=False):
 	default = default or ''
 	while True:
 		try:
 			ret = f(s) or (default() if is_func(default) else default)
+			if skip and not ret:
+				return None
 			ret = type(ret) if type is not None else ret
 		except (KeyboardInterrupt, EOFError):
 			raise_abort()
@@ -127,7 +129,7 @@ def confirm(prompt, default=None, show_default=True, abort=False, input_function
 			echo('Please respond with "yes" or "no" (or "y" or "n").')
 
 def prompt(text, default=None, show_default=True, invisible=False,
-           confirm=False, type=None, input_function=None):
+           confirm=False, skip=False, type=None, input_function=None):
 	'''Prompts for input from the user.
 	'''
 	t = determine_type(type, default)
@@ -135,8 +137,8 @@ def prompt(text, default=None, show_default=True, invisible=False,
 	if default is not None and show_default:
 		text = '{} [{}]: '.format(text, default)
 	while True:
-		val = prompt_fn(input_function, text, default, t, repeat=True)
-		if not confirm:
+		val = prompt_fn(input_function, text, default, t, skip, repeat=True)
+		if not confirm or (skip and val is None):
 			return val
 		if val == prompt_fn(input_function, 'Confirm: ', default, t, repeat=True):
 			return val

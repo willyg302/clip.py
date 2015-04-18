@@ -7,7 +7,7 @@ setup(
 	name='clip.py',
 	author='William Gaul',
 	author_email='willyg302@gmail.com',
-	version='0.2.1',
+	version='0.2.2',
 	url='https://github.com/willyg302/clip.py',
 	license='MIT',
 	py_modules=['clip'],

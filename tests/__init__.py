@@ -132,6 +132,10 @@ class TestGlobals(BaseTest):
 		with mock_clip_input(['']):
 			with self.assertRaises(clip.ClipExit):
 				clip.prompt('?', default=cause_interrupt)
+		# Skip
+		with mock_clip_input(['', '']):
+			self.assertIsNone(clip.prompt('?', skip=True))
+			self.assertIsNone(clip.prompt('?', confirm=True, skip=True))
 
 
 class TestParse(BaseTest):
