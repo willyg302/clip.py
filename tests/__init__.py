@@ -31,7 +31,8 @@ class BaseTest(unittest.TestCase):
 	'''
 
 	def setUp(self):
-		pass
+		# Flush apps from previous tests, or they get written to again
+		clip.clip_globals._streams = {}
 
 	def make_kitchen_sink_app(self):
 		app = clip.App()
@@ -80,8 +81,7 @@ class TestGlobals(BaseTest):
 	def test_clip_globals(self):
 		out, err = Stream(), Stream()
 		cg = clip.ClipGlobals()
-		cg.set_stdout(out)
-		cg.set_stderr(err)
+		cg.add_streams(out, err)
 		cg.echo('My my')
 		cg.echo('What have I done?', err=True)
 		for i in range(10):
@@ -90,6 +90,7 @@ class TestGlobals(BaseTest):
 		self.assertEqual(err._writes, ['What have I done?\n'])
 
 	def test_exit(self):
+		self.embed()
 		# Standard case, custom message
 		try:
 			clip.exit('Woot!')
@@ -103,6 +104,7 @@ class TestGlobals(BaseTest):
 			self.assertEqual(e.status, 1)
 
 	def test_confirm(self):
+		self.embed()
 		# All the standard accepted entries
 		with mock_clip_input(['y', 'n', 'Y', 'N', 'yEs', 'No', 'YES', 'no']):
 			for e in [True, False, True, False, True, False, True, False]:

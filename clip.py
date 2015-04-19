@@ -1,12 +1,13 @@
 '''
 clip.py: Embeddable, composable [c]ommand [l]ine [i]nterface [p]arsing
 
-Copyright: (c) 2014 William Gaul
+Copyright: (c) 2015 William Gaul
 License: MIT, see LICENSE for more details
 '''
 import itertools
 import shlex
 import sys
+import uuid
 
 
 ########################################
@@ -63,23 +64,31 @@ def determine_type(t, default):
 class ClipGlobals(object):
 
 	def __init__(self):
-		self._stdout = None
-		self._stderr = None
+		self._streams = {}
 
-	def echo(self, message, err=False, nl=True):
-		stream = self._stderr if err else self._stdout
-		if stream is None:
-			raise TypeError('clip {} stream has not been initialized'.format('err' if err else 'out'))
+	def _write(self, message, stream, nl=True):
 		stream.write(str(message) + ("\n" if nl else ""))
 		# Custom streams may not implement a flush() method
 		if hasattr(stream, 'flush'):
 			stream.flush()
 
-	def set_stdout(self, stream):
-		self._stdout = stream
+	def _broadcast(self, message, err=False, nl=True):
+		for k, v in iteritems(self._streams):
+			self._write(message, v['err' if err else 'out'], nl)
 
-	def set_stderr(self, stream):
-		self._stderr = stream
+	def echo(self, message, err=False, nl=True, app=None):
+		if not self._streams:
+			raise AttributeError('No streams have been initialized')
+		if app is None:
+			self._broadcast(message, err, nl)
+		else:
+			self._write(message, self._streams[app]['err' if err else 'out'], nl)
+
+	def add_streams(self, out, err, app=None):
+		self._streams[app] = {
+			'out': out or sys.stdout,
+			'err': err or sys.stderr
+		}
 
 
 class ClipExit(Exception):
@@ -92,12 +101,12 @@ class ClipExit(Exception):
 
 clip_globals = ClipGlobals()
 
-def echo(message, err=False, nl=True):
-	clip_globals.echo(message, err, nl)
+def echo(message, err=False, nl=True, app=None):
+	clip_globals.echo(message, err, nl, app)
 
-def exit(message=None, err=False):
+def exit(message=None, err=False, app=None):
 	if message:
-		echo(message, err)
+		echo(message, err, app=app)
 	raise ClipExit(message, 1 if err else 0)
 
 def raise_abort():
@@ -566,11 +575,10 @@ class Command(object):
 
 class App(object):
 
-	def __init__(self, stdout=None, stderr=None):
-		clip_globals.set_stdout(stdout or sys.stdout)
-		clip_globals.set_stderr(stderr or sys.stderr)
-
+	def __init__(self, stdout=None, stderr=None, name=None):
 		self._main = None
+		self._name = name or str(uuid.uuid4())
+		clip_globals.add_streams(stdout, stderr, self._name)
 
 	def _ping_main(self):
 		if self._main is None:
@@ -584,6 +592,12 @@ class App(object):
 			self._main = cmd
 			return cmd
 		return decorator
+
+	def echo(self, message, err=False, nl=True):
+		echo(message, err, nl, app=self._name)
+
+	def exit(self, message=None, err=False):
+		exit(message, err, app=self._name)
 
 	def parse(self, tokens):
 		'''Parses a list of tokens into a JSON-serializable object.

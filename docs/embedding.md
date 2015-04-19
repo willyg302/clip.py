@@ -208,3 +208,43 @@ list
 ```
 
 You might notice that what we've basically done is created an in-browser shell in less than 100 lines of Python and 20 lines of JavaScript. Not bad.
+
+## Bonus: Multiple Apps
+
+If you happen to have multiple clip apps floating around in the same program, things are still a breeze! Using our existing `Stream` class, let's create two apps that write to different streams:
+
+```python
+def stream_a(message):
+	sys.stdout.write('From stream A: {}'.format(message))
+
+def stream_b(message):
+	sys.stdout.write('From stream B: {}'.format(message))
+
+app1 = clip.App(stdout=Stream(stream_a), name='app1')
+app2 = clip.App(stdout=Stream(stream_b), name='app2')
+```
+
+You'll noticed that we've given each app a `name`. This allows us to interact with them in a number of different ways:
+
+```python
+clip.echo('App 1 via name', app='app1')
+clip.echo('App 2 via name', app='app2')
+
+app1.echo('App 1 directly')
+app2.echo('App 2 directly')
+
+clip.echo('Broadcast!')
+```
+
+This outputs:
+
+```diff
+From stream A: App 1 via name
+From stream B: App 2 via name
+From stream A: App 1 directly
+From stream B: App 2 directly
+From stream B: Broadcast!
+From stream A: Broadcast!
+```
+
+Basically: refer to a specific app, and you'll write to only its streams; otherwise, you broadcast to all apps that clip knows about. Pretty simple, no?

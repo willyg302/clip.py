@@ -1,6 +1,6 @@
 import clip
 
-from . import BaseTest
+from . import BaseTest, Stream
 
 
 class TestExamples(BaseTest):
@@ -359,6 +359,28 @@ Options:
 			'a in y: True\n',
 			'c in y: True\n',
 			'All together now: (True, True, True, True)\n'
+		])
+
+	def test_embedding(self):
+		# Multiple apps (slightly modified for testing)
+		out1 = Stream()
+		out2 = Stream()
+		app1 = clip.App(stdout=out1, name='app1')
+		app2 = clip.App(stdout=out2, name='app2')
+		clip.echo('App 1 via name', app='app1')
+		clip.echo('App 2 via name', app='app2')
+		app1.echo('App 1 directly')
+		app2.echo('App 2 directly')
+		clip.echo('Broadcast!')
+		self.assertEqual(out1._writes, [
+			'App 1 via name\n',
+			'App 1 directly\n',
+			'Broadcast!\n'
+		])
+		self.assertEqual(out2._writes, [
+			'App 2 via name\n',
+			'App 2 directly\n',
+			'Broadcast!\n'
 		])
 
 	def test_extending_clip(self):
