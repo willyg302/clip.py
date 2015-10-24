@@ -18,6 +18,7 @@ PY2 = sys.version_info[0] == 2
 
 input = raw_input if PY2 else input
 text_type = basestring if PY2 else str
+to_str = unicode if PY2 else str
 def is_func(e):
 	return hasattr(e, '__call__')
 def iteritems(d):
@@ -67,7 +68,7 @@ class ClipGlobals(object):
 		self._streams = {}
 
 	def _write(self, message, stream, nl=True):
-		stream.write(unicode(message) + ("\n" if nl else ""))
+		stream.write(to_str(message) + ("\n" if nl else ""))
 		# Custom streams may not implement a flush() method
 		if hasattr(stream, 'flush'):
 			stream.flush()
