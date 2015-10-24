@@ -67,7 +67,7 @@ class ClipGlobals(object):
 		self._streams = {}
 
 	def _write(self, message, stream, nl=True):
-		stream.write(str(message) + ("\n" if nl else ""))
+		stream.write(unicode(message) + ("\n" if nl else ""))
 		# Custom streams may not implement a flush() method
 		if hasattr(stream, 'flush'):
 			stream.flush()
