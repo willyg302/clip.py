@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import unittest
 import contextlib
 
@@ -88,6 +89,12 @@ class TestGlobals(BaseTest):
 			cg.echo('.', nl=False)
 		self.assertEqual(out._writes, ['My my\n'] + ['.'] * 10)
 		self.assertEqual(err._writes, ['What have I done?\n'])
+
+	def test_echo(self):
+		_, out, _ = self.embed()
+		# Make sure Unicode works properly
+		clip.echo('你好')
+		self.assertEqual(out._writes, ['你好\n'])
 
 	def test_exit(self):
 		self.embed()

@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
 	name='clip.py',
-	version='0.3.0',
+	version='0.3.1',
 	url='https://github.com/willyg302/clip.py',
 	license='MIT',
 	author='William Gaul',
