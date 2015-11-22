@@ -60,7 +60,7 @@ Subcommands:
 Usage: add {{arguments}} {{options}}
 
 Arguments:
-  item [text]  
+  item [text]
 
 Options:
   -h, --help            Show this help message and exit
@@ -112,7 +112,7 @@ Usage: x {{options}}
 
 Options:
   -h, --help   Show this help message and exit
-  --num [int]  
+  --num [int]
 ''',
 			'I was invoked with the number 19!\n'
 		])

@@ -18,7 +18,7 @@ PY2 = sys.version_info[0] == 2
 
 input = raw_input if PY2 else input
 text_type = basestring if PY2 else str
-to_str = lambda s: '{}'.format(s)
+to_str = lambda s: u'{}'.format(s)
 def is_func(e):
 	return hasattr(e, '__call__')
 def iteritems(d):
@@ -536,7 +536,7 @@ class Command(object):
 		def make_help_section(l, title):
 			data = [e._get_help() for e in l]
 			width = max(len(e[0]) for e in data) + 2
-			return '\n'.join([title] + ['  {}{}'.format(e[0].ljust(width), e[1]) for e in data])
+			return '\n'.join([title] + [('  {}{}'.format(e[0].ljust(width), e[1])).rstrip () for e in data])
 
 		args = self._params.arguments()
 		if args:

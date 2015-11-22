@@ -93,8 +93,8 @@ class TestGlobals(BaseTest):
 	def test_echo(self):
 		_, out, _ = self.embed()
 		# Make sure Unicode works properly
-		clip.echo('你好')
-		self.assertEqual(out._writes, ['你好\n'])
+		clip.echo(u'你好')
+		self.assertEqual(out._writes, [u'你好\n'])
 
 	def test_exit(self):
 		self.embed()
@@ -331,12 +331,12 @@ Options:
 Usage: f {{arguments}} {{options}} {{subcommand}}
 
 Arguments:
-  yo [text]  
+  yo [text]
 
 Options:
   -h, --help                Show this help message and exit
   -s, --something [int...]  Does stuff (default: [1, 2, 3])
-  -n, --nothing             
+  -n, --nothing
 
 Subcommands:
   x  Oh lookee! A subcommand!
