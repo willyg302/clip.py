@@ -27,7 +27,7 @@ def f():
 ### Parameters
 
 - `message=None`: An optional message to print before exiting. Note that this message is also passed onward to the underlying `ClipExit`.
-- `err=False`: Whether this exit is occuring because of an error.
+- `err=False`: Whether this exit is occurring because of an error.
 
 ## Confirmation Prompt
 
